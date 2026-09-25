@@ -24,4 +24,6 @@ public interface AdministradorRepository extends JpaRepository<Administrador, UU
     Optional<Administrador> findByEmail(@Param("email") String email);
 
     boolean existsByIdAndAtivoTrue(UUID id);
+
+    Optional<Administrador> findByIdAndAtivoTrue(UUID id);
 }
