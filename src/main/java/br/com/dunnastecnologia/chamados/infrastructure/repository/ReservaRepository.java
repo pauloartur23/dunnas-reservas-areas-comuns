@@ -4,7 +4,6 @@ import br.com.dunnastecnologia.chamados.domain.model.Reserva;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -13,8 +12,6 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Optional;
 import java.util.UUID;
-
-import jakarta.persistence.LockModeType;
 
 @Repository
 public interface ReservaRepository extends JpaRepository<Reserva, UUID> {
@@ -77,12 +74,4 @@ public interface ReservaRepository extends JpaRepository<Reserva, UUID> {
             @Param("horaInicio") LocalTime horaInicio,
             @Param("horaFim") LocalTime horaFim
     );
-
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("""
-            select r
-            from Reserva r
-            where r.id = :id
-            """)
-    Optional<Reserva> buscarComLockParaDecisao(@Param("id") UUID id);
 }
