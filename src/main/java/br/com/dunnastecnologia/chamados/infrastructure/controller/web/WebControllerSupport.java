@@ -2,9 +2,11 @@ package br.com.dunnastecnologia.chamados.infrastructure.controller.web;
 
 import br.com.dunnastecnologia.chamados.application.Security.AuthenticatedUser;
 import br.com.dunnastecnologia.chamados.application.pagination.PageResult;
+import br.com.dunnastecnologia.chamados.domain.model.AreaComum;
 import br.com.dunnastecnologia.chamados.domain.model.Bloco;
 import br.com.dunnastecnologia.chamados.domain.model.Chamado;
 import br.com.dunnastecnologia.chamados.domain.model.Comentario;
+import br.com.dunnastecnologia.chamados.domain.model.Reserva;
 import br.com.dunnastecnologia.chamados.domain.model.StatusChamado;
 import br.com.dunnastecnologia.chamados.domain.model.TipoChamado;
 import br.com.dunnastecnologia.chamados.domain.model.Unidade;
@@ -217,6 +219,35 @@ public class WebControllerSupport {
         values.put("contentType", contentType);
         values.put("tamanhoBytes", tamanhoBytes);
         values.put("tamanhoFormatado", formatBytes(tamanhoBytes));
+        return values;
+    }
+
+    public Map<String, Object> toAreaComumMap(AreaComum areaComum) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("id", areaComum.getId());
+        values.put("nome", areaComum.getNome());
+        values.put("descricao", areaComum.getDescricao());
+        values.put("ativa", Boolean.TRUE.equals(areaComum.getAtiva()));
+        return values;
+    }
+
+    public Map<String, Object> toReservaMap(Reserva reserva) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("id", reserva.getId());
+        values.put("areaComumId", reserva.getAreaComum() == null ? null : reserva.getAreaComum().getId());
+        values.put("areaComumNome", reserva.getAreaComum() == null ? null : reserva.getAreaComum().getNome());
+        values.put("moradorId", reserva.getMorador() == null ? null : reserva.getMorador().getId());
+        values.put("moradorNome", reserva.getMorador() == null ? null : reserva.getMorador().getNome());
+        values.put("data", reserva.getData());
+        values.put("horaInicio", reserva.getHoraInicio());
+        values.put("horaFim", reserva.getHoraFim());
+        values.put("status", reserva.getStatus().name());
+        values.put("motivoNegacao", reserva.getMotivoNegacao());
+        values.put("dataSolicitacao", reserva.getDataSolicitacao());
+        values.put("dataSolicitacaoFormatada", formatDateTime(reserva.getDataSolicitacao()));
+        values.put("dataDecisao", reserva.getDataDecisao());
+        values.put("dataDecisaoFormatada", formatDateTime(reserva.getDataDecisao()));
+        values.put("dataCancelamento", reserva.getDataCancelamento());
         return values;
     }
 
