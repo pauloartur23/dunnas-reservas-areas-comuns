@@ -9,6 +9,7 @@ import jakarta.persistence.GeneratedValue;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalTime;
 import java.util.UUID;
 
 @Entity
@@ -29,4 +30,10 @@ public class AreaComum {
 
     @Column(nullable = false)
     private Boolean ativa = Boolean.TRUE;
+
+    @Column
+    private LocalTime horarioAbertura;
+
+    @Column
+    private LocalTime horarioFechamento;
 }
