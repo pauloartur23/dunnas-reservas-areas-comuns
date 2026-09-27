@@ -74,4 +74,16 @@ public interface ReservaRepository extends JpaRepository<Reserva, UUID> {
             @Param("horaInicio") LocalTime horaInicio,
             @Param("horaFim") LocalTime horaFim
     );
+
+    /**
+     * Descobre a area da reserva sem carregar a entidade, para permitir trancar
+     * a area antes de ler o estado atual da reserva.
+     */
+    @Query("select r.areaComum.id from Reserva r where r.id = :reservaId")
+    Optional<UUID> buscarAreaComumIdPorReservaId(@Param("reservaId") UUID reservaId);
+
+    /**
+     * Confere se a reserva pertence ao morador sem expor dados de outros moradores.
+     */
+    boolean existsByIdAndMoradorId(UUID id, UUID moradorId);
 }
