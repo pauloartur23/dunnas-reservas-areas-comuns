@@ -16,11 +16,15 @@
             <a href="${ctx}/admin/tipos-chamado" class="nav-link">Tipos de Chamado</a>
             <a href="${ctx}/admin/status-chamado" class="nav-link">Status</a>
             <a href="${ctx}/admin/chamados" class="nav-link">Chamados</a>
+            <a href="${ctx}/admin/areas-comuns" class="nav-link">Areas Comuns</a>
+            <a href="${ctx}/admin/reservas" class="nav-link">Reservas</a>
         </c:if>
 
         <c:if test="${isMorador}">
             <a href="${ctx}/morador/chamados" class="nav-link">Meus Chamados</a>
             <a href="${ctx}/morador/chamados/novo" class="nav-link">Abrir Chamado</a>
+            <a href="${ctx}/morador/areas-comuns" class="nav-link">Areas Comuns</a>
+            <a href="${ctx}/morador/reservas" class="nav-link">Minhas Reservas</a>
         </c:if>
 
         <c:if test="${isColaborador}">
