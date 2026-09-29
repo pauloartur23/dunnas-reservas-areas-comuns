@@ -18,7 +18,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.time.DayOfWeek;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Controller
 @PreAuthorize("hasRole('ADMINISTRADOR')")
@@ -47,9 +50,39 @@ public class AdminReservaApiController {
         reservaUseCases.cadastrarAreaComum(
                 support.authenticatedUser(authentication),
                 cadastrarAreaComumForm.getNome(),
-                cadastrarAreaComumForm.getDescricao()
+                cadastrarAreaComumForm.getDescricao(),
+                cadastrarAreaComumForm.getHorarioAbertura(),
+                cadastrarAreaComumForm.getHorarioFechamento(),
+                converterDiasFuncionamento(cadastrarAreaComumForm.getDiasFuncionamento())
         );
         redirectAttributes.addFlashAttribute("successMessage", "Area comum cadastrada com sucesso.");
+        return "redirect:/admin/areas-comuns";
+    }
+
+    @PatchMapping("/admin/areas-comuns/{areaComumId}")
+    @Operation(summary = "Atualiza nome, descricao, horario e dias de uma area comum", tags = "23 - Admin Web - Reservas")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "302", description = "Area comum atualizada com sucesso e redirecionamento para a listagem."),
+            @ApiResponse(responseCode = "400", description = "Dados informados sao invalidos."),
+            @ApiResponse(responseCode = "403", description = "Acesso negado para o perfil autenticado."),
+            @ApiResponse(responseCode = "404", description = "Area comum nao encontrada.")
+    })
+    public String editarAreaComum(
+            Authentication authentication,
+            @PathVariable UUID areaComumId,
+            @ModelAttribute CadastrarAreaComumForm cadastrarAreaComumForm,
+            RedirectAttributes redirectAttributes
+    ) {
+        reservaUseCases.atualizarAreaComum(
+                support.authenticatedUser(authentication),
+                areaComumId,
+                cadastrarAreaComumForm.getNome(),
+                cadastrarAreaComumForm.getDescricao(),
+                cadastrarAreaComumForm.getHorarioAbertura(),
+                cadastrarAreaComumForm.getHorarioFechamento(),
+                converterDiasFuncionamento(cadastrarAreaComumForm.getDiasFuncionamento())
+        );
+        redirectAttributes.addFlashAttribute("successMessage", "Area comum atualizada com sucesso.");
         return "redirect:/admin/areas-comuns";
     }
 
@@ -77,7 +110,7 @@ public class AdminReservaApiController {
     @Operation(summary = "Aprova uma solicitacao de reserva", tags = "23 - Admin Web - Reservas")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "302", description = "Reserva aprovada com sucesso e redirecionamento para a listagem."),
-            @ApiResponse(responseCode = "400", description = "Existe reserva aprovada conflitante ou a reserva nao esta mais solicitada."),
+            @ApiResponse(responseCode = "400", description = "Existe reserva aprovada conflitante, a reserva ja comecou ou nao esta mais solicitada."),
             @ApiResponse(responseCode = "403", description = "Acesso negado para o perfil autenticado."),
             @ApiResponse(responseCode = "404", description = "Reserva nao encontrada.")
     })
@@ -128,5 +161,12 @@ public class AdminReservaApiController {
         reservaUseCases.cancelarComoAdmin(support.authenticatedUser(authentication), reservaId);
         redirectAttributes.addFlashAttribute("successMessage", "Reserva cancelada com sucesso.");
         return "redirect:/admin/reservas";
+    }
+
+    private Set<DayOfWeek> converterDiasFuncionamento(Set<String> dias) {
+        if (dias == null) {
+            return Set.of();
+        }
+        return dias.stream().map(DayOfWeek::valueOf).collect(Collectors.toSet());
     }
 }

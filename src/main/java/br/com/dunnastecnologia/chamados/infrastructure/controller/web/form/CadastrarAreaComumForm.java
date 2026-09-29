@@ -4,6 +4,8 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Getter
 @Setter
@@ -12,4 +14,5 @@ public class CadastrarAreaComumForm {
     private String descricao;
     private LocalTime horarioAbertura;
     private LocalTime horarioFechamento;
+    private Set<String> diasFuncionamento = new HashSet<>();
 }

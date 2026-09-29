@@ -6,17 +6,47 @@ import br.com.dunnastecnologia.chamados.domain.model.AreaComum;
 import br.com.dunnastecnologia.chamados.domain.model.Reserva;
 import org.springframework.data.domain.PageRequest;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 public interface ReservaUseCases {
 
     /**
-     * Permite que o administrador cadastre uma nova area comum disponivel para reserva.
+     * Permite que o administrador cadastre uma nova area comum disponivel para reserva,
+     * com horario de funcionamento e dias da semana opcionais (sem restricoes, a area
+     * funciona todos os dias e sem limite de horario).
      */
-    AreaComum cadastrarAreaComum(AuthenticatedUser admin, String nome, String descricao);
+    AreaComum cadastrarAreaComum(
+            AuthenticatedUser admin,
+            String nome,
+            String descricao,
+            LocalTime horarioAbertura,
+            LocalTime horarioFechamento,
+            Set<DayOfWeek> diasFuncionamento
+    );
+
+    /**
+     * Permite que o administrador altere os dados de uma area comum. A alteracao vale
+     * apenas para novas solicitacoes; reservas existentes preservam seu estado.
+     */
+    AreaComum atualizarAreaComum(
+            AuthenticatedUser admin,
+            UUID areaComumId,
+            String nome,
+            String descricao,
+            LocalTime horarioAbertura,
+            LocalTime horarioFechamento,
+            Set<DayOfWeek> diasFuncionamento
+    );
+
+    /**
+     * Recupera uma area comum para que o administrador possa edita-la.
+     */
+    AreaComum buscarAreaComumPorId(AuthenticatedUser admin, UUID areaComumId);
 
     /**
      * Permite que o administrador ative ou desative uma area comum, sem apagar
@@ -61,7 +91,7 @@ public interface ReservaUseCases {
 
     /**
      * Permite que o administrador aprove uma solicitacao sem conflito no momento
-     * da decisao, tornando-a a unica reserva aprovada daquele intervalo na area.
+     * da decisao e antes do inicio, tornando-a a unica reserva aprovada do intervalo.
      */
     Reserva aprovarReserva(AuthenticatedUser admin, UUID reservaId);
 

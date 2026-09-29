@@ -22,10 +22,15 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.TextStyle;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -56,20 +61,62 @@ public class ReservaService implements ReservaUseCases {
 
     @Override
     @Transactional
-    public AreaComum cadastrarAreaComum(AuthenticatedUser admin, String nome, String descricao) {
+    public AreaComum cadastrarAreaComum(
+            AuthenticatedUser admin,
+            String nome,
+            String descricao,
+            LocalTime horarioAbertura,
+            LocalTime horarioFechamento,
+            Set<DayOfWeek> diasFuncionamento
+    ) {
         authenticatedUserValidator.assertAdministrador(admin);
-        String nomeNormalizado = InputValidationSupport.normalizeRequiredText(
-                nome,
-                "Nome da area comum e obrigatorio",
-                "Nome da area comum deve ter no maximo " + ValidationLimits.DEFAULT_TEXT_MAX_LENGTH + " caracteres",
-                ValidationLimits.DEFAULT_TEXT_MAX_LENGTH
-        );
+        String nomeNormalizado = normalizarNomeArea(nome);
+        String descricaoNormalizada = normalizarDescricaoArea(descricao);
+        validarHorarioFuncionamento(horarioAbertura, horarioFechamento);
 
         AreaComum areaComum = new AreaComum();
         areaComum.setNome(nomeNormalizado);
-        areaComum.setDescricao(descricao != null ? descricao.trim() : null);
+        areaComum.setDescricao(descricaoNormalizada);
+        areaComum.setHorarioAbertura(horarioAbertura);
+        areaComum.setHorarioFechamento(horarioFechamento);
+        areaComum.setDiasFuncionamento(diasFuncionamento != null ? diasFuncionamento : new HashSet<>());
         areaComum.setAtiva(Boolean.TRUE);
         return areaComumRepository.save(areaComum);
+    }
+
+    @Override
+    @Transactional
+    public AreaComum atualizarAreaComum(
+            AuthenticatedUser admin,
+            UUID areaComumId,
+            String nome,
+            String descricao,
+            LocalTime horarioAbertura,
+            LocalTime horarioFechamento,
+            Set<DayOfWeek> diasFuncionamento
+    ) {
+        authenticatedUserValidator.assertAdministrador(admin);
+        String nomeNormalizado = normalizarNomeArea(nome);
+        String descricaoNormalizada = normalizarDescricaoArea(descricao);
+        validarHorarioFuncionamento(horarioAbertura, horarioFechamento);
+
+        AreaComum areaComum = areaComumRepository.findById(areaComumId)
+                .orElseThrow(() -> new ResourceNotFoundException("Area comum nao encontrada"));
+
+        // RN-01-01: a alteracao vale para novas solicitacoes; reservas existentes nao sao tocadas.
+        areaComum.setNome(nomeNormalizado);
+        areaComum.setDescricao(descricaoNormalizada);
+        areaComum.setHorarioAbertura(horarioAbertura);
+        areaComum.setHorarioFechamento(horarioFechamento);
+        areaComum.setDiasFuncionamento(diasFuncionamento != null ? diasFuncionamento : new HashSet<>());
+        return areaComumRepository.save(areaComum);
+    }
+
+    @Override
+    public AreaComum buscarAreaComumPorId(AuthenticatedUser admin, UUID areaComumId) {
+        authenticatedUserValidator.assertAdministrador(admin);
+        return areaComumRepository.findById(areaComumId)
+                .orElseThrow(() -> new ResourceNotFoundException("Area comum nao encontrada"));
     }
 
     @Override
@@ -96,8 +143,11 @@ public class ReservaService implements ReservaUseCases {
             AuthenticatedUser morador, UUID areaComumId, LocalDate data, LocalTime horaInicio, LocalTime horaFim
     ) {
         authenticatedUserValidator.assertMorador(morador);
-        assertAreaComumExiste(areaComumId);
+        AreaComum areaComum = areaComumRepository.findById(areaComumId)
+                .orElseThrow(() -> new ResourceNotFoundException("Area comum nao encontrada"));
         validarIntervalo(data, horaInicio, horaFim, false);
+        validarJanelaDeFuncionamento(areaComum, horaInicio, horaFim);
+        validarDiaDeFuncionamento(areaComum, data);
 
         // RN-01-05: so reservas APROVADA contam como ocupado.
         return !reservaRepository.existeReservaAprovadaConflitante(areaComumId, data, horaInicio, horaFim);
@@ -117,6 +167,8 @@ public class ReservaService implements ReservaUseCases {
             // RN-01-01: area retirada/desativada nao aceita novas solicitacoes.
             throw new BusinessRuleException("Area comum nao esta disponivel para novas solicitacoes");
         }
+        validarJanelaDeFuncionamento(areaComum, horaInicio, horaFim);
+        validarDiaDeFuncionamento(areaComum, data);
 
         Morador moradorEntity = moradorRepository.findByIdAndAtivoTrue(morador.id())
                 .orElseThrow(() -> new ResourceNotFoundException("Morador nao encontrado"));
@@ -157,6 +209,10 @@ public class ReservaService implements ReservaUseCases {
     @Override
     public Reserva buscarMinhaReserva(AuthenticatedUser morador, UUID reservaId) {
         authenticatedUserValidator.assertMorador(morador);
+        // RNF-03: reserva de outro morador e reserva inexistente recebem a mesma resposta.
+        if (!reservaRepository.existsByIdAndMoradorId(reservaId, morador.id())) {
+            throw new ResourceNotFoundException("Reserva nao encontrada para o morador");
+        }
         return reservaRepository.findByIdAndMoradorId(morador.id(), reservaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Reserva nao encontrada para o morador"));
     }
@@ -168,14 +224,12 @@ public class ReservaService implements ReservaUseCases {
     public Reserva aprovarReserva(AuthenticatedUser admin, UUID reservaId) {
         authenticatedUserValidator.assertAdministrador(admin);
 
-        Reserva reserva = reservaRepository.findById(reservaId)
-                .orElseThrow(() -> new ResourceNotFoundException("Reserva nao encontrada"));
+        Reserva reserva = carregarReservaComLockDaArea(reservaId);
         assertDecisaoPermitida(reserva);
-
-        // Trava a AREA (nao a reserva): serializa qualquer decisao concorrente
-        // sobre a mesma area, mesmo que sejam reservas com IDs diferentes.
-        areaComumRepository.buscarComLockParaDecisao(reserva.getAreaComum().getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Area comum nao encontrada"));
+        if (jaComecou(reserva)) {
+            // CA-01-12: reserva cujo inicio ja ocorreu nao pode mais ser aprovada.
+            throw new BusinessRuleException("Nao e possivel aprovar uma reserva cujo horario inicial ja comecou");
+        }
 
         boolean conflita = reservaRepository.existeReservaAprovadaConflitante(
                 reserva.getAreaComum().getId(), reserva.getData(), reserva.getHoraInicio(), reserva.getHoraFim()
@@ -205,8 +259,7 @@ public class ReservaService implements ReservaUseCases {
                 ValidationLimits.DEFAULT_TEXT_MAX_LENGTH
         ); // RN-01-08: motivo nao vazio
 
-        Reserva reserva = reservaRepository.findById(reservaId)
-                .orElseThrow(() -> new ResourceNotFoundException("Reserva nao encontrada"));
+        Reserva reserva = carregarReservaComLockDaArea(reservaId);
         assertDecisaoPermitida(reserva);
 
         Administrador administradorEntity = administradorRepository.findByIdAndAtivoTrue(admin.id())
@@ -225,18 +278,17 @@ public class ReservaService implements ReservaUseCases {
     @Transactional
     public Reserva cancelarComoMorador(AuthenticatedUser morador, UUID reservaId) {
         authenticatedUserValidator.assertMorador(morador);
-        Reserva reserva = reservaRepository.findByIdAndMoradorId(morador.id(), reservaId)
-                .orElseThrow(() -> new ResourceNotFoundException("Reserva nao encontrada para o morador"));
-        return cancelar(reserva); // RN-01-11
+        if (!reservaRepository.existsByIdAndMoradorId(reservaId, morador.id())) {
+            throw new ResourceNotFoundException("Reserva nao encontrada para o morador");
+        }
+        return cancelar(carregarReservaComLockDaArea(reservaId)); // RN-01-11
     }
 
     @Override
     @Transactional
     public Reserva cancelarComoAdmin(AuthenticatedUser admin, UUID reservaId) {
         authenticatedUserValidator.assertAdministrador(admin);
-        Reserva reserva = reservaRepository.findById(reservaId)
-                .orElseThrow(() -> new ResourceNotFoundException("Reserva nao encontrada"));
-        return cancelar(reserva); // RN-01-12
+        return cancelar(carregarReservaComLockDaArea(reservaId)); // RN-01-12
     }
 
     private Reserva cancelar(Reserva reserva) {
@@ -244,8 +296,7 @@ public class ReservaService implements ReservaUseCases {
             // RN-01-14: estados terminais nao podem ser cancelados de novo.
             throw new BusinessRuleException("Somente reservas solicitadas ou aprovadas podem ser canceladas");
         }
-        LocalDateTime inicio = LocalDateTime.of(reserva.getData(), reserva.getHoraInicio());
-        if (!inicio.isAfter(LocalDateTime.now())) {
+        if (jaComecou(reserva)) {
             // RN-01-11/RN-01-12/RN-01-14: horario inicial ja alcancado impede cancelamento.
             throw new BusinessRuleException("Nao e possivel cancelar uma reserva cujo horario inicial ja comecou");
         }
@@ -255,19 +306,35 @@ public class ReservaService implements ReservaUseCases {
         return reservaRepository.save(reserva); // RN-01-13: preserva historico, libera disponibilidade
     }
 
-    // ---------- validacoes privadas compartilhadas ----------
+    // ---------- concorrencia ----------
 
-    private void assertAreaComumExiste(UUID areaComumId) {
-        if (!areaComumRepository.existsById(areaComumId)) {
-            throw new ResourceNotFoundException("Area comum nao encontrada");
-        }
+    /**
+     * Toda mudanca de estado de reserva passa por aqui: descobre a area, tranca a area
+     * (serializando decisoes concorrentes sobre ela) e so entao le a reserva, garantindo
+     * que o estado lido e o mais recente e nao um dado velho de antes da trava.
+     */
+    private Reserva carregarReservaComLockDaArea(UUID reservaId) {
+        UUID areaComumId = reservaRepository.buscarAreaComumIdPorReservaId(reservaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Reserva nao encontrada"));
+        areaComumRepository.buscarComLockParaDecisao(areaComumId)
+                .orElseThrow(() -> new ResourceNotFoundException("Area comum nao encontrada"));
+        return reservaRepository.findById(reservaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Reserva nao encontrada"));
     }
+
+    // ---------- validacoes privadas compartilhadas ----------
 
     private void assertDecisaoPermitida(Reserva reserva) {
         if (reserva.getStatus() != StatusReserva.SOLICITADA) {
             // RN-01-14: reserva ja decidida ou cancelada nao pode ser reaprovada/renegada.
             throw new BusinessRuleException("Somente reservas solicitadas podem ser aprovadas ou negadas");
         }
+    }
+
+    private boolean jaComecou(Reserva reserva) {
+        // RN-01-15: referencia temporal unica (relogio da JVM, timezone America/Sao_Paulo)
+        LocalDateTime inicio = LocalDateTime.of(reserva.getData(), reserva.getHoraInicio());
+        return !inicio.isAfter(LocalDateTime.now());
     }
 
     private void validarIntervalo(LocalDate data, LocalTime horaInicio, LocalTime horaFim, boolean exigirInicioFuturo) {
@@ -279,11 +346,76 @@ public class ReservaService implements ReservaUseCases {
             throw new BusinessRuleException("Horario de fim deve ser posterior ao horario de inicio");
         }
         if (exigirInicioFuturo) {
-            // RN-01-02 + RN-01-15: referencia temporal unica (relogio da JVM, timezone America/Sao_Paulo)
+            // RN-01-02 + RN-01-15
             LocalDateTime inicio = LocalDateTime.of(data, horaInicio);
             if (!inicio.isAfter(LocalDateTime.now())) {
                 throw new BusinessRuleException("O horario inicial da reserva deve ser futuro");
             }
         }
+    }
+
+    private void validarJanelaDeFuncionamento(AreaComum areaComum, LocalTime horaInicio, LocalTime horaFim) {
+        LocalTime abertura = areaComum.getHorarioAbertura();
+        LocalTime fechamento = areaComum.getHorarioFechamento();
+        if (abertura == null || fechamento == null) {
+            return; // area sem horario de funcionamento nao tem restricao
+        }
+        if (horaInicio.isBefore(abertura) || horaFim.isAfter(fechamento)) {
+            throw new BusinessRuleException(
+                    "A area so funciona das " + abertura + " as " + fechamento
+            );
+        }
+    }
+
+    private void validarHorarioFuncionamento(LocalTime abertura, LocalTime fechamento) {
+        if (abertura == null && fechamento == null) {
+            return;
+        }
+        if (abertura == null || fechamento == null) {
+            throw new BusinessRuleException(
+                    "Informe o horario de abertura e o de fechamento, ou deixe os dois vazios"
+            );
+        }
+        if (!fechamento.isAfter(abertura)) {
+            throw new BusinessRuleException("Horario de fechamento deve ser posterior ao de abertura");
+        }
+    }
+
+    private void validarDiaDeFuncionamento(AreaComum areaComum, LocalDate data) {
+        Set<DayOfWeek> dias = areaComum.getDiasFuncionamento();
+        if (dias == null || dias.isEmpty()) {
+            return; // sem dias cadastrados: area funciona todos os dias
+        }
+        if (!dias.contains(data.getDayOfWeek())) {
+            throw new BusinessRuleException(
+                    "Esta area nao funciona aos " + nomeDiaSemana(data.getDayOfWeek())
+            );
+        }
+    }
+
+    private String nomeDiaSemana(DayOfWeek diaSemana) {
+        return diaSemana.getDisplayName(TextStyle.FULL, new Locale("pt", "BR"));
+    }
+
+    private String normalizarNomeArea(String nome) {
+        return InputValidationSupport.normalizeRequiredText(
+                nome,
+                "Nome da area comum e obrigatorio",
+                "Nome da area comum deve ter no maximo " + ValidationLimits.DEFAULT_TEXT_MAX_LENGTH + " caracteres",
+                ValidationLimits.DEFAULT_TEXT_MAX_LENGTH
+        );
+    }
+
+    private String normalizarDescricaoArea(String descricao) {
+        if (descricao == null || descricao.isBlank()) {
+            return null;
+        }
+        String normalizada = descricao.trim();
+        if (normalizada.length() > ValidationLimits.DEFAULT_TEXT_MAX_LENGTH) {
+            throw new BusinessRuleException(
+                    "Descricao da area comum deve ter no maximo " + ValidationLimits.DEFAULT_TEXT_MAX_LENGTH + " caracteres"
+            );
+        }
+        return normalizada;
     }
 }
