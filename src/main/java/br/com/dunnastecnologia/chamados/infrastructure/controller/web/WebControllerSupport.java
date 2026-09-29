@@ -22,14 +22,17 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Component
 public class WebControllerSupport {
@@ -228,6 +231,10 @@ public class WebControllerSupport {
         values.put("nome", areaComum.getNome());
         values.put("descricao", areaComum.getDescricao());
         values.put("ativa", Boolean.TRUE.equals(areaComum.getAtiva()));
+        values.put("horarioAbertura", areaComum.getHorarioAbertura());
+        values.put("horarioFechamento", areaComum.getHorarioFechamento());
+        values.put("temHorarioFuncionamento", areaComum.getHorarioAbertura() != null);
+        values.put("diasFuncionamentoLabel", formatDiasFuncionamento(areaComum.getDiasFuncionamento()));
         return values;
     }
 
@@ -307,6 +314,28 @@ public class WebControllerSupport {
         }
         double megabytes = kilobytes / 1024.0;
         return String.format(Locale.US, "%.1f MB", megabytes);
+    }
+
+    private String formatDiasFuncionamento(Set<DayOfWeek> dias) {
+        if (dias == null || dias.isEmpty()) {
+            return "Todos os dias";
+        }
+        return dias.stream()
+                .sorted()
+                .map(this::diaAbreviado)
+                .collect(Collectors.joining(", "));
+    }
+
+    private String diaAbreviado(DayOfWeek dia) {
+        return switch (dia) {
+            case MONDAY -> "Seg";
+            case TUESDAY -> "Ter";
+            case WEDNESDAY -> "Qua";
+            case THURSDAY -> "Qui";
+            case FRIDAY -> "Sex";
+            case SATURDAY -> "Sab";
+            case SUNDAY -> "Dom";
+        };
     }
 
     private UploadedFileData uploadedFile(MultipartFile arquivo, String errorMessage) {
