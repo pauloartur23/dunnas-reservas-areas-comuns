@@ -18,22 +18,23 @@ public interface ChamadoRepository extends JpaRepository<Chamado, UUID> {
 
     /**
      * Sincroniza o status dos chamados vencidos com base no SLA do tipo de chamado.
+     *
+     * Reescrita em HQL (em vez de SQL nativo) de proposito: a versao anterior usava
+     * a sintaxe "update ... from ..." do Postgres, que nao existe no H2 (banco usado
+     * nos testes automatizados). Em HQL, o proprio Hibernate traduz para a sintaxe
+     * certa de cada banco (Postgres em producao, H2 nos testes), entao a mesma
+     * consulta funciona nos dois sem duplicar codigo.
      */
     @Modifying
-    @Query(value = """
-            update chamados c
-               set status_id = s.id
-              from status_chamado s,
-                   tipos_chamado tc
-             where lower(s.nome) = 'atrasado'
-               and tc.id = c.tipo_chamado_id
-               and c.data_finalizacao is null
-               and c.data_abertura is not null
-               and tc.prazo_horas is not null
-               and now() > c.data_abertura + (tc.prazo_horas * interval '1 hour')
-               and c.status_id <> s.id
-            """,
-            nativeQuery = true)
+    @Query("""
+            update Chamado c
+               set c.status = (select s from StatusChamado s where lower(s.nome) = 'atrasado')
+             where c.dataFinalizacao is null
+               and c.dataAbertura is not null
+               and c.tipoChamado.prazoHoras is not null
+               and current_timestamp > timestampadd(hour, c.tipoChamado.prazoHoras, c.dataAbertura)
+               and c.status <> (select s from StatusChamado s where lower(s.nome) = 'atrasado')
+            """)
     int marcarChamadosAtrasados();
 
     /**
