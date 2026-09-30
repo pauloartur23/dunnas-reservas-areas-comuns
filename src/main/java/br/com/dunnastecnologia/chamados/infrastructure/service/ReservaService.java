@@ -7,6 +7,7 @@ import br.com.dunnastecnologia.chamados.domain.model.Administrador;
 import br.com.dunnastecnologia.chamados.domain.model.AreaComum;
 import br.com.dunnastecnologia.chamados.domain.model.Morador;
 import br.com.dunnastecnologia.chamados.domain.model.Reserva;
+import br.com.dunnastecnologia.chamados.domain.model.ReservaHistorico;
 import br.com.dunnastecnologia.chamados.domain.model.StatusReserva;
 import br.com.dunnastecnologia.chamados.domain.validation.ValidationLimits;
 import br.com.dunnastecnologia.chamados.infrastructure.exception.BusinessRuleException;
@@ -14,6 +15,7 @@ import br.com.dunnastecnologia.chamados.infrastructure.exception.ResourceNotFoun
 import br.com.dunnastecnologia.chamados.infrastructure.repository.AdministradorRepository;
 import br.com.dunnastecnologia.chamados.infrastructure.repository.AreaComumRepository;
 import br.com.dunnastecnologia.chamados.infrastructure.repository.MoradorRepository;
+import br.com.dunnastecnologia.chamados.infrastructure.repository.ReservaHistoricoRepository;
 import br.com.dunnastecnologia.chamados.infrastructure.repository.ReservaRepository;
 import br.com.dunnastecnologia.chamados.infrastructure.service.support.AuthenticatedUserValidator;
 import br.com.dunnastecnologia.chamados.infrastructure.service.support.InputValidationSupport;
@@ -38,8 +40,12 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class ReservaService implements ReservaUseCases {
 
+    private static final String AUTOR_MORADOR = "MORADOR";
+    private static final String AUTOR_ADMINISTRADOR = "ADMINISTRADOR";
+
     private final AreaComumRepository areaComumRepository;
     private final ReservaRepository reservaRepository;
+    private final ReservaHistoricoRepository reservaHistoricoRepository;
     private final MoradorRepository moradorRepository;
     private final AdministradorRepository administradorRepository;
     private final AuthenticatedUserValidator authenticatedUserValidator;
@@ -47,12 +53,14 @@ public class ReservaService implements ReservaUseCases {
     public ReservaService(
             AreaComumRepository areaComumRepository,
             ReservaRepository reservaRepository,
+            ReservaHistoricoRepository reservaHistoricoRepository,
             MoradorRepository moradorRepository,
             AdministradorRepository administradorRepository,
             AuthenticatedUserValidator authenticatedUserValidator
     ) {
         this.areaComumRepository = areaComumRepository;
         this.reservaRepository = reservaRepository;
+        this.reservaHistoricoRepository = reservaHistoricoRepository;
         this.moradorRepository = moradorRepository;
         this.administradorRepository = administradorRepository;
         this.authenticatedUserValidator = authenticatedUserValidator;
@@ -194,7 +202,9 @@ public class ReservaService implements ReservaUseCases {
         reserva.setHoraFim(horaFim);
         reserva.setStatus(StatusReserva.SOLICITADA); // RN-01-04
         reserva.setDataSolicitacao(LocalDateTime.now());
-        return reservaRepository.save(reserva);
+        Reserva reservaSalva = reservaRepository.save(reserva);
+        registrarHistorico(reservaSalva, null, StatusReserva.SOLICITADA, AUTOR_MORADOR, moradorEntity.getNome(), null);
+        return reservaSalva;
     }
 
     // ---------- RF-05: consulta e acompanhamento ----------
@@ -230,6 +240,16 @@ public class ReservaService implements ReservaUseCases {
                 .orElseThrow(() -> new ResourceNotFoundException("Reserva nao encontrada para o morador"));
     }
 
+    @Override
+    public List<ReservaHistorico> listarHistoricoDaMinhaReserva(AuthenticatedUser morador, UUID reservaId) {
+        authenticatedUserValidator.assertMorador(morador);
+        // RNF-03: mesma checagem de posse usada em buscarMinhaReserva.
+        if (!reservaRepository.existsByIdAndMoradorId(reservaId, morador.id())) {
+            throw new ResourceNotFoundException("Reserva nao encontrada para o morador");
+        }
+        return reservaHistoricoRepository.findByReservaIdOrderByDataEventoAsc(reservaId);
+    }
+
     // ---------- RF-04: aprovacao e negacao ----------
 
     @Override
@@ -255,10 +275,13 @@ public class ReservaService implements ReservaUseCases {
         Administrador administradorEntity = administradorRepository.findByIdAndAtivoTrue(admin.id())
                 .orElseThrow(() -> new ResourceNotFoundException("Administrador nao encontrado"));
 
+        StatusReserva statusAnterior = reserva.getStatus();
         reserva.setStatus(StatusReserva.APROVADA);
         reserva.setAdministradorDecisao(administradorEntity);
         reserva.setDataDecisao(LocalDateTime.now());
-        return reservaRepository.save(reserva);
+        Reserva reservaSalva = reservaRepository.save(reserva);
+        registrarHistorico(reservaSalva, statusAnterior, StatusReserva.APROVADA, AUTOR_ADMINISTRADOR, administradorEntity.getNome(), null);
+        return reservaSalva;
     }
 
     @Override
@@ -278,11 +301,14 @@ public class ReservaService implements ReservaUseCases {
         Administrador administradorEntity = administradorRepository.findByIdAndAtivoTrue(admin.id())
                 .orElseThrow(() -> new ResourceNotFoundException("Administrador nao encontrado"));
 
+        StatusReserva statusAnterior = reserva.getStatus();
         reserva.setStatus(StatusReserva.NEGADA);
         reserva.setMotivoNegacao(motivoNormalizado);
         reserva.setAdministradorDecisao(administradorEntity);
         reserva.setDataDecisao(LocalDateTime.now());
-        return reservaRepository.save(reserva);
+        Reserva reservaSalva = reservaRepository.save(reserva);
+        registrarHistorico(reservaSalva, statusAnterior, StatusReserva.NEGADA, AUTOR_ADMINISTRADOR, administradorEntity.getNome(), motivoNormalizado);
+        return reservaSalva;
     }
 
     // ---------- RF-06: cancelamento ----------
@@ -294,17 +320,22 @@ public class ReservaService implements ReservaUseCases {
         if (!reservaRepository.existsByIdAndMoradorId(reservaId, morador.id())) {
             throw new ResourceNotFoundException("Reserva nao encontrada para o morador");
         }
-        return cancelar(carregarReservaComLockDaArea(reservaId)); // RN-01-11
+        Reserva reserva = carregarReservaComLockDaArea(reservaId); // RN-01-11
+        String autorNome = reserva.getMorador() == null ? null : reserva.getMorador().getNome();
+        return cancelar(reserva, AUTOR_MORADOR, autorNome);
     }
 
     @Override
     @Transactional
     public Reserva cancelarComoAdmin(AuthenticatedUser admin, UUID reservaId) {
         authenticatedUserValidator.assertAdministrador(admin);
-        return cancelar(carregarReservaComLockDaArea(reservaId)); // RN-01-12
+        Administrador administradorEntity = administradorRepository.findByIdAndAtivoTrue(admin.id())
+                .orElseThrow(() -> new ResourceNotFoundException("Administrador nao encontrado"));
+        Reserva reserva = carregarReservaComLockDaArea(reservaId); // RN-01-12
+        return cancelar(reserva, AUTOR_ADMINISTRADOR, administradorEntity.getNome());
     }
 
-    private Reserva cancelar(Reserva reserva) {
+    private Reserva cancelar(Reserva reserva, String autorTipo, String autorNome) {
         if (reserva.getStatus() != StatusReserva.SOLICITADA && reserva.getStatus() != StatusReserva.APROVADA) {
             // RN-01-14: estados terminais nao podem ser cancelados de novo.
             throw new BusinessRuleException("Somente reservas solicitadas ou aprovadas podem ser canceladas");
@@ -314,9 +345,12 @@ public class ReservaService implements ReservaUseCases {
             throw new BusinessRuleException("Nao e possivel cancelar uma reserva cujo horario inicial ja comecou");
         }
 
+        StatusReserva statusAnterior = reserva.getStatus();
         reserva.setStatus(StatusReserva.CANCELADA);
         reserva.setDataCancelamento(LocalDateTime.now());
-        return reservaRepository.save(reserva); // RN-01-13: preserva historico, libera disponibilidade
+        Reserva reservaSalva = reservaRepository.save(reserva); // RN-01-13: preserva historico, libera disponibilidade
+        registrarHistorico(reservaSalva, statusAnterior, StatusReserva.CANCELADA, autorTipo, autorNome, null);
+        return reservaSalva;
     }
 
     // ---------- concorrencia ----------
@@ -333,6 +367,32 @@ public class ReservaService implements ReservaUseCases {
                 .orElseThrow(() -> new ResourceNotFoundException("Area comum nao encontrada"));
         return reservaRepository.findById(reservaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Reserva nao encontrada"));
+    }
+
+    // ---------- historico (registro de auditoria) ----------
+
+    /**
+     * Grava um evento imutavel de mudanca de status. statusAnterior e null apenas
+     * na criacao da reserva (nao houve status anterior). Chamado sempre depois do
+     * save() da propria reserva, pra garantir que reserva.getId() ja existe.
+     */
+    private void registrarHistorico(
+            Reserva reserva,
+            StatusReserva statusAnterior,
+            StatusReserva statusNovo,
+            String autorTipo,
+            String autorNome,
+            String observacao
+    ) {
+        ReservaHistorico historico = new ReservaHistorico();
+        historico.setReserva(reserva);
+        historico.setStatusAnterior(statusAnterior);
+        historico.setStatusNovo(statusNovo);
+        historico.setAutorTipo(autorTipo);
+        historico.setAutorNome(autorNome);
+        historico.setObservacao(observacao);
+        historico.setDataEvento(LocalDateTime.now());
+        reservaHistoricoRepository.save(historico);
     }
 
     // ---------- validacoes privadas compartilhadas ----------
@@ -407,7 +467,7 @@ public class ReservaService implements ReservaUseCases {
     }
 
     /**
-     * RN adicionada : nome de area comum e unico ignorando maiuscula/minuscula.
+     * RN adicionada por nos: nome de area comum e unico ignorando maiuscula/minuscula.
      * areaComumIdIgnorado e null no cadastro e o id da propria area na edicao (pra nao
      * acusar a area colidindo com o proprio nome dela mesma).
      */

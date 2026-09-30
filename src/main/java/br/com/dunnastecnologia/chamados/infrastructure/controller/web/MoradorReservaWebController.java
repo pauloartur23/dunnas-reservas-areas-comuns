@@ -123,9 +123,11 @@ public class MoradorReservaWebController {
     ) {
         var currentUser = support.authenticatedUser(authentication);
         var reserva = reservaUseCases.buscarMinhaReserva(currentUser, reservaId);
+        var historico = reservaUseCases.listarHistoricoDaMinhaReserva(currentUser, reservaId);
 
         model.addAttribute("pageTitle", "Detalhes da Reserva");
         model.addAttribute("reserva", support.toReservaMap(reserva));
+        model.addAttribute("historico", support.mapContent(historico, support::toReservaHistoricoMap));
         return "morador/reservas/detalhe";
     }
 }

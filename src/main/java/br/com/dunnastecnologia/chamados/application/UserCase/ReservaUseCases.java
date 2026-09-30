@@ -4,6 +4,7 @@ import br.com.dunnastecnologia.chamados.application.Security.AuthenticatedUser;
 import br.com.dunnastecnologia.chamados.application.pagination.PageResult;
 import br.com.dunnastecnologia.chamados.domain.model.AreaComum;
 import br.com.dunnastecnologia.chamados.domain.model.Reserva;
+import br.com.dunnastecnologia.chamados.domain.model.ReservaHistorico;
 import org.springframework.data.domain.PageRequest;
 
 import java.time.DayOfWeek;
@@ -112,4 +113,10 @@ public interface ReservaUseCases {
      * desde que ainda nao tenha atingido o horario de inicio.
      */
     Reserva cancelarComoAdmin(AuthenticatedUser admin, UUID reservaId);
+
+    /**
+     * Lista o historico de mudancas de status de uma reserva do proprio morador
+     * (registro de auditoria), na ordem em que os eventos aconteceram.
+     */
+    List<ReservaHistorico> listarHistoricoDaMinhaReserva(AuthenticatedUser morador, UUID reservaId);
 }

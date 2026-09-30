@@ -7,7 +7,9 @@ import br.com.dunnastecnologia.chamados.domain.model.Bloco;
 import br.com.dunnastecnologia.chamados.domain.model.Chamado;
 import br.com.dunnastecnologia.chamados.domain.model.Comentario;
 import br.com.dunnastecnologia.chamados.domain.model.Reserva;
+import br.com.dunnastecnologia.chamados.domain.model.ReservaHistorico;
 import br.com.dunnastecnologia.chamados.domain.model.StatusChamado;
+import br.com.dunnastecnologia.chamados.domain.model.StatusReserva;
 import br.com.dunnastecnologia.chamados.domain.model.TipoChamado;
 import br.com.dunnastecnologia.chamados.domain.model.Unidade;
 import br.com.dunnastecnologia.chamados.domain.model.Usuario;
@@ -258,6 +260,22 @@ public class WebControllerSupport {
         return values;
     }
 
+    /**
+     * Mapeia um evento do historico de reserva (registro de auditoria) para exibicao
+     * na tela de detalhe. statusAnteriorLabel vem nulo apenas no primeiro evento
+     * (a criacao da propria reserva), o que a JSP usa pra mudar o texto exibido.
+     */
+    public Map<String, Object> toReservaHistoricoMap(ReservaHistorico historico) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("statusAnteriorLabel", historico.getStatusAnterior() == null ? null : statusLabel(historico.getStatusAnterior()));
+        values.put("statusNovoLabel", statusLabel(historico.getStatusNovo()));
+        values.put("autorTipoLabel", "ADMINISTRADOR".equals(historico.getAutorTipo()) ? "Administrador" : "Morador");
+        values.put("autorNome", historico.getAutorNome());
+        values.put("observacao", historico.getObservacao());
+        values.put("dataEventoFormatada", formatDateTime(historico.getDataEvento()));
+        return values;
+    }
+
     public UploadedFileData optionalUploadedFile(MultipartFile arquivo, String errorMessage) {
         if (arquivo == null || arquivo.isEmpty()) {
             return null;
@@ -335,6 +353,15 @@ public class WebControllerSupport {
             case FRIDAY -> "Sex";
             case SATURDAY -> "Sab";
             case SUNDAY -> "Dom";
+        };
+    }
+
+    private String statusLabel(StatusReserva status) {
+        return switch (status) {
+            case SOLICITADA -> "Solicitada";
+            case APROVADA -> "Aprovada";
+            case NEGADA -> "Negada";
+            case CANCELADA -> "Cancelada";
         };
     }
 

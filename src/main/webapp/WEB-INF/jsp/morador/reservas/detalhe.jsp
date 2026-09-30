@@ -40,6 +40,48 @@
                     </form>
                 </c:if>
             </section>
+
+            <section class="card">
+                <div class="section-header">
+                    <div>
+                        <p class="eyebrow">Auditoria</p>
+                        <h2>Historico</h2>
+                    </div>
+                </div>
+
+                <c:choose>
+                    <c:when test="${empty historico}">
+                        <div class="empty-state compact">
+                            <p>Nenhum evento registrado ainda.</p>
+                        </div>
+                    </c:when>
+                    <c:otherwise>
+                        <div class="timeline">
+                            <c:forEach items="${historico}" var="evento">
+                                <article class="timeline-item">
+                                    <header>
+                                        <strong>${evento.autorNome}</strong>
+                                        <span>${evento.autorTipoLabel} &bull; ${evento.dataEventoFormatada}</span>
+                                    </header>
+                                    <p>
+                                        <c:choose>
+                                            <c:when test="${empty evento.statusAnteriorLabel}">
+                                                Reserva solicitada (status inicial: ${evento.statusNovoLabel})
+                                            </c:when>
+                                            <c:otherwise>
+                                                ${evento.statusAnteriorLabel} &rarr; ${evento.statusNovoLabel}
+                                            </c:otherwise>
+                                        </c:choose>
+                                    </p>
+                                    <c:if test="${not empty evento.observacao}">
+                                        <p><span>Motivo:</span> ${evento.observacao}</p>
+                                    </c:if>
+                                </article>
+                            </c:forEach>
+                        </div>
+                    </c:otherwise>
+                </c:choose>
+            </section>
         </main>
     </div>
 </div>
