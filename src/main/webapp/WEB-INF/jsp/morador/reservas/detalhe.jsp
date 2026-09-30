@@ -33,7 +33,7 @@
                 </div>
 
                 <c:if test="${reserva.status eq 'SOLICITADA' or reserva.status eq 'APROVADA'}">
-                    <form method="post" action="${ctx}/morador/reservas/${reserva.id}/cancelar" class="inline-panel">
+                    <form method="post" action="${ctx}/morador/reservas/${reserva.id}/cancelar" class="inline-panel" data-confirm="Tem certeza que deseja cancelar esta reserva?">
                         <%@ include file="/WEB-INF/jsp/fragments/csrf.jspf" %>
                         <input type="hidden" name="_method" value="patch">
                         <button type="submit" class="btn btn-danger">Cancelar reserva</button>

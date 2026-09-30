@@ -85,7 +85,7 @@
                                                     <input type="hidden" name="_method" value="patch">
                                                     <button type="submit" class="btn btn-primary">Aprovar</button>
                                                 </form>
-                                                <form method="post" action="${ctx}/admin/reservas/${reserva.id}/negar" class="inline-panel">
+                                                <form method="post" action="${ctx}/admin/reservas/${reserva.id}/negar" class="inline-panel" data-confirm="Tem certeza que deseja negar esta reserva?">
                                                     <%@ include file="/WEB-INF/jsp/fragments/csrf.jspf" %>
                                                     <input type="hidden" name="_method" value="patch">
                                                     <input type="text" name="motivo" placeholder="Motivo" required maxlength="255">
@@ -93,7 +93,7 @@
                                                 </form>
                                             </c:if>
                                             <c:if test="${reserva.status eq 'SOLICITADA' or reserva.status eq 'APROVADA'}">
-                                                <form method="post" action="${ctx}/admin/reservas/${reserva.id}/cancelar" class="inline-panel">
+                                                <form method="post" action="${ctx}/admin/reservas/${reserva.id}/cancelar" class="inline-panel" data-confirm="Tem certeza que deseja cancelar esta reserva?">
                                                     <%@ include file="/WEB-INF/jsp/fragments/csrf.jspf" %>
                                                     <input type="hidden" name="_method" value="patch">
                                                     <button type="submit" class="btn btn-danger">Cancelar</button>
