@@ -9,6 +9,8 @@ import br.com.dunnastecnologia.chamados.domain.model.Chamado;
 import br.com.dunnastecnologia.chamados.domain.model.Comentario;
 import br.com.dunnastecnologia.chamados.domain.model.StatusChamado;
 import br.com.dunnastecnologia.chamados.infrastructure.controller.api.ColaboradorChamadoApiController;
+import br.com.dunnastecnologia.chamados.infrastructure.security.JwtService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -16,6 +18,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -28,7 +31,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static br.com.dunnastecnologia.chamados.infrastructure.controller.web.WebTestAuthenticationFactory.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -56,6 +59,26 @@ class ColaboradorWebControllerIntegrationTest {
 
     @MockitoBean
     private ComentarioUseCase comentarioUseCase;
+
+    /**
+     * Dublê do JwtService, necessário apenas para o Spring conseguir montar o contexto
+     * de teste: o JwtAuthenticationFilter (um Filter, então é escaneado pelo @WebMvcTest)
+     * depende dele no construtor. Como @AutoConfigureMockMvc(addFilters = false) desliga
+     * a execução do filtro nas requisições de teste, esse mock nunca é chamado de verdade.
+     */
+    @MockitoBean
+    private JwtService jwtService;
+
+    /**
+     * Garante que a autenticacao simulada de um teste (colocada diretamente no
+     * SecurityContextHolder por WebTestAuthenticationFactory.authentication()) nao
+     * "vaze" para o proximo teste, ja que aqui nao existe filtro pra limpar isso
+     * automaticamente entre as requisicoes.
+     */
+    @AfterEach
+    void limparContextoDeSeguranca() {
+        SecurityContextHolder.clearContext();
+    }
 
     @Test
     void dashboardDeveExibirContadorDeChamadosAtrasados() throws Exception {
