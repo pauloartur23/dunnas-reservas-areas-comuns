@@ -18,6 +18,7 @@ import br.com.dunnastecnologia.chamados.infrastructure.repository.ReservaReposit
 import br.com.dunnastecnologia.chamados.infrastructure.service.support.AuthenticatedUserValidator;
 import br.com.dunnastecnologia.chamados.infrastructure.service.support.InputValidationSupport;
 import br.com.dunnastecnologia.chamados.infrastructure.service.support.PageResultMapper;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -73,6 +74,7 @@ public class ReservaService implements ReservaUseCases {
         String nomeNormalizado = normalizarNomeArea(nome);
         String descricaoNormalizada = normalizarDescricaoArea(descricao);
         validarHorarioFuncionamento(horarioAbertura, horarioFechamento);
+        validarNomeUnico(nomeNormalizado, null);
 
         AreaComum areaComum = new AreaComum();
         areaComum.setNome(nomeNormalizado);
@@ -81,7 +83,13 @@ public class ReservaService implements ReservaUseCases {
         areaComum.setHorarioFechamento(horarioFechamento);
         areaComum.setDiasFuncionamento(diasFuncionamento != null ? diasFuncionamento : new HashSet<>());
         areaComum.setAtiva(Boolean.TRUE);
-        return areaComumRepository.save(areaComum);
+        try {
+            return areaComumRepository.save(areaComum);
+        } catch (DataIntegrityViolationException e) {
+            // Segunda camada de protecao: cobre a corrida entre dois cadastros
+            // simultaneos com o mesmo nome que passaram pela checagem acima.
+            throw new BusinessRuleException("Ja existe uma area comum com este nome");
+        }
     }
 
     @Override
@@ -99,6 +107,7 @@ public class ReservaService implements ReservaUseCases {
         String nomeNormalizado = normalizarNomeArea(nome);
         String descricaoNormalizada = normalizarDescricaoArea(descricao);
         validarHorarioFuncionamento(horarioAbertura, horarioFechamento);
+        validarNomeUnico(nomeNormalizado, areaComumId);
 
         AreaComum areaComum = areaComumRepository.findById(areaComumId)
                 .orElseThrow(() -> new ResourceNotFoundException("Area comum nao encontrada"));
@@ -109,7 +118,11 @@ public class ReservaService implements ReservaUseCases {
         areaComum.setHorarioAbertura(horarioAbertura);
         areaComum.setHorarioFechamento(horarioFechamento);
         areaComum.setDiasFuncionamento(diasFuncionamento != null ? diasFuncionamento : new HashSet<>());
-        return areaComumRepository.save(areaComum);
+        try {
+            return areaComumRepository.save(areaComum);
+        } catch (DataIntegrityViolationException e) {
+            throw new BusinessRuleException("Ja existe uma area comum com este nome");
+        }
     }
 
     @Override
@@ -390,6 +403,20 @@ public class ReservaService implements ReservaUseCases {
             throw new BusinessRuleException(
                     "Esta area nao funciona aos " + nomeDiaSemana(data.getDayOfWeek())
             );
+        }
+    }
+
+    /**
+     * RN adicionada : nome de area comum e unico ignorando maiuscula/minuscula.
+     * areaComumIdIgnorado e null no cadastro e o id da propria area na edicao (pra nao
+     * acusar a area colidindo com o proprio nome dela mesma).
+     */
+    private void validarNomeUnico(String nomeNormalizado, UUID areaComumIdIgnorado) {
+        boolean duplicado = areaComumIdIgnorado == null
+                ? areaComumRepository.existsByNomeIgnoreCase(nomeNormalizado)
+                : areaComumRepository.existsByNomeIgnoreCaseAndIdNot(nomeNormalizado, areaComumIdIgnorado);
+        if (duplicado) {
+            throw new BusinessRuleException("Ja existe uma area comum com este nome");
         }
     }
 

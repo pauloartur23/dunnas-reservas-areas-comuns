@@ -16,6 +16,18 @@ public interface AreaComumRepository extends JpaRepository<AreaComum, UUID> {
 
     boolean existsByIdAndAtivaTrue(UUID id);
 
+    /**
+     * RN adicionada: nome de area comum e unico ignorando maiuscula/minuscula.
+     * Usado no cadastro (nao ha area nenhuma pra ignorar).
+     */
+    boolean existsByNomeIgnoreCase(String nome);
+
+    /**
+     * Mesma checagem, mas ignorando a propria area (usado na edicao, pra area nao
+     * colidir com o proprio nome dela mesma quando o admin salva sem mudar o nome).
+     */
+    boolean existsByNomeIgnoreCaseAndIdNot(String nome, UUID id);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select a from AreaComum a where a.id = :id")
     Optional<AreaComum> buscarComLockParaDecisao(@Param("id") UUID id);
