@@ -76,12 +76,14 @@ public class ReservaService implements ReservaUseCases {
             String descricao,
             LocalTime horarioAbertura,
             LocalTime horarioFechamento,
+            Integer duracaoMaximaMinutos,
             Set<DayOfWeek> diasFuncionamento
     ) {
         authenticatedUserValidator.assertAdministrador(admin);
         String nomeNormalizado = normalizarNomeArea(nome);
         String descricaoNormalizada = normalizarDescricaoArea(descricao);
         validarHorarioFuncionamento(horarioAbertura, horarioFechamento);
+        validarDuracaoMaxima(duracaoMaximaMinutos);
         validarNomeUnico(nomeNormalizado, null);
 
         AreaComum areaComum = new AreaComum();
@@ -89,6 +91,7 @@ public class ReservaService implements ReservaUseCases {
         areaComum.setDescricao(descricaoNormalizada);
         areaComum.setHorarioAbertura(horarioAbertura);
         areaComum.setHorarioFechamento(horarioFechamento);
+        areaComum.setDuracaoMaximaMinutos(duracaoMaximaMinutos);
         areaComum.setDiasFuncionamento(diasFuncionamento != null ? diasFuncionamento : new HashSet<>());
         areaComum.setAtiva(Boolean.TRUE);
         try {
@@ -109,12 +112,14 @@ public class ReservaService implements ReservaUseCases {
             String descricao,
             LocalTime horarioAbertura,
             LocalTime horarioFechamento,
+            Integer duracaoMaximaMinutos,
             Set<DayOfWeek> diasFuncionamento
     ) {
         authenticatedUserValidator.assertAdministrador(admin);
         String nomeNormalizado = normalizarNomeArea(nome);
         String descricaoNormalizada = normalizarDescricaoArea(descricao);
         validarHorarioFuncionamento(horarioAbertura, horarioFechamento);
+        validarDuracaoMaxima(duracaoMaximaMinutos);
         validarNomeUnico(nomeNormalizado, areaComumId);
 
         AreaComum areaComum = areaComumRepository.findById(areaComumId)
@@ -125,6 +130,7 @@ public class ReservaService implements ReservaUseCases {
         areaComum.setDescricao(descricaoNormalizada);
         areaComum.setHorarioAbertura(horarioAbertura);
         areaComum.setHorarioFechamento(horarioFechamento);
+        areaComum.setDuracaoMaximaMinutos(duracaoMaximaMinutos);
         areaComum.setDiasFuncionamento(diasFuncionamento != null ? diasFuncionamento : new HashSet<>());
         try {
             return areaComumRepository.save(areaComum);
@@ -169,6 +175,7 @@ public class ReservaService implements ReservaUseCases {
         validarIntervalo(data, horaInicio, horaFim, false);
         validarJanelaDeFuncionamento(areaComum, horaInicio, horaFim);
         validarDiaDeFuncionamento(areaComum, data);
+        validarDuracaoDaReserva(areaComum, horaInicio, horaFim);
 
         // RN-01-05: so reservas APROVADA contam como ocupado.
         return !reservaRepository.existeReservaAprovadaConflitante(areaComumId, data, horaInicio, horaFim);
@@ -190,6 +197,7 @@ public class ReservaService implements ReservaUseCases {
         }
         validarJanelaDeFuncionamento(areaComum, horaInicio, horaFim);
         validarDiaDeFuncionamento(areaComum, data);
+        validarDuracaoDaReserva(areaComum, horaInicio, horaFim);
 
         Morador moradorEntity = moradorRepository.findByIdAndAtivoTrue(morador.id())
                 .orElseThrow(() -> new ResourceNotFoundException("Morador nao encontrado"));
@@ -451,6 +459,29 @@ public class ReservaService implements ReservaUseCases {
         }
         if (!fechamento.isAfter(abertura)) {
             throw new BusinessRuleException("Horario de fechamento deve ser posterior ao de abertura");
+        }
+    }
+
+    /**
+     * RN adicionada por nos: a area comum pode ter uma duracao maxima de reserva
+     * configurada (em minutos). Sem valor cadastrado, nao ha limite.
+     */
+    private void validarDuracaoMaxima(Integer duracaoMaximaMinutos) {
+        if (duracaoMaximaMinutos != null && duracaoMaximaMinutos <= 0) {
+            throw new BusinessRuleException("A duracao maxima deve ser um numero de minutos maior que zero");
+        }
+    }
+
+    private void validarDuracaoDaReserva(AreaComum areaComum, LocalTime horaInicio, LocalTime horaFim) {
+        Integer duracaoMaximaMinutos = areaComum.getDuracaoMaximaMinutos();
+        if (duracaoMaximaMinutos == null) {
+            return; // area sem limite de duracao cadastrado
+        }
+        long duracaoSolicitadaMinutos = java.time.Duration.between(horaInicio, horaFim).toMinutes();
+        if (duracaoSolicitadaMinutos > duracaoMaximaMinutos) {
+            throw new BusinessRuleException(
+                    "Esta area permite reservas de no maximo " + duracaoMaximaMinutos + " minutos"
+            );
         }
     }
 

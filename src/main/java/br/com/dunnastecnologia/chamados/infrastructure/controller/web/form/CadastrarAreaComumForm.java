@@ -14,5 +14,6 @@ public class CadastrarAreaComumForm {
     private String descricao;
     private LocalTime horarioAbertura;
     private LocalTime horarioFechamento;
+    private Integer duracaoMaximaMinutos;
     private Set<String> diasFuncionamento = new HashSet<>();
 }

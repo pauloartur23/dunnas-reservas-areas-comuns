@@ -236,6 +236,7 @@ public class WebControllerSupport {
         values.put("horarioAbertura", areaComum.getHorarioAbertura());
         values.put("horarioFechamento", areaComum.getHorarioFechamento());
         values.put("temHorarioFuncionamento", areaComum.getHorarioAbertura() != null);
+        values.put("duracaoMaximaMinutos", areaComum.getDuracaoMaximaMinutos());
         values.put("diasFuncionamentoLabel", formatDiasFuncionamento(areaComum.getDiasFuncionamento()));
         return values;
     }

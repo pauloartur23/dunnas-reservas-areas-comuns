@@ -46,6 +46,9 @@ public class AreaComum {
     @Column
     private LocalTime horarioFechamento;
 
+    @Column(name = "duracao_maxima_minutos")
+    private Integer duracaoMaximaMinutos;
+
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "area_comum_dia_funcionamento", joinColumns = @JoinColumn(name = "area_comum_id"))
     @Column(name = "dia_semana", length = 15)

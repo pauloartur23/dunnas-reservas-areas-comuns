@@ -53,6 +53,7 @@ public class AdminReservaApiController {
                 cadastrarAreaComumForm.getDescricao(),
                 cadastrarAreaComumForm.getHorarioAbertura(),
                 cadastrarAreaComumForm.getHorarioFechamento(),
+                cadastrarAreaComumForm.getDuracaoMaximaMinutos(),
                 converterDiasFuncionamento(cadastrarAreaComumForm.getDiasFuncionamento())
         );
         redirectAttributes.addFlashAttribute("successMessage", "Area comum cadastrada com sucesso.");
@@ -80,6 +81,7 @@ public class AdminReservaApiController {
                 cadastrarAreaComumForm.getDescricao(),
                 cadastrarAreaComumForm.getHorarioAbertura(),
                 cadastrarAreaComumForm.getHorarioFechamento(),
+                cadastrarAreaComumForm.getDuracaoMaximaMinutos(),
                 converterDiasFuncionamento(cadastrarAreaComumForm.getDiasFuncionamento())
         );
         redirectAttributes.addFlashAttribute("successMessage", "Area comum atualizada com sucesso.");

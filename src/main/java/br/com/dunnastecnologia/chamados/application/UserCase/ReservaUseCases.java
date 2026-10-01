@@ -27,6 +27,7 @@ public interface ReservaUseCases {
             String descricao,
             LocalTime horarioAbertura,
             LocalTime horarioFechamento,
+            Integer duracaoMaximaMinutos,
             Set<DayOfWeek> diasFuncionamento
     );
 
@@ -41,6 +42,7 @@ public interface ReservaUseCases {
             String descricao,
             LocalTime horarioAbertura,
             LocalTime horarioFechamento,
+            Integer duracaoMaximaMinutos,
             Set<DayOfWeek> diasFuncionamento
     );
 

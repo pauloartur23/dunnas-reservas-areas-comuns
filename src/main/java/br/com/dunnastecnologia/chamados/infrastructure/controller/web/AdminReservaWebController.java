@@ -71,6 +71,7 @@ public class AdminReservaWebController {
             form.setDescricao(area.getDescricao());
             form.setHorarioAbertura(area.getHorarioAbertura());
             form.setHorarioFechamento(area.getHorarioFechamento());
+            form.setDuracaoMaximaMinutos(area.getDuracaoMaximaMinutos());
             form.setDiasFuncionamento(
                     area.getDiasFuncionamento().stream().map(Enum::name).collect(Collectors.toSet())
             );

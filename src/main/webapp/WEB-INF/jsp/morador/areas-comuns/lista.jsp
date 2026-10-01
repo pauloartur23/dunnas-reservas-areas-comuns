@@ -33,6 +33,7 @@
                                 <tr>
                                     <th>Nome</th>
                                     <th>Descricao</th>
+                                    <th>Duracao maxima</th>
                                     <th>Situacao</th>
                                 </tr>
                                 </thead>
@@ -41,6 +42,12 @@
                                     <tr>
                                         <td>${area.nome}</td>
                                         <td>${area.descricao}</td>
+                                        <td>
+                                            <c:choose>
+                                                <c:when test="${not empty area.duracaoMaximaMinutos}">${area.duracaoMaximaMinutos} min</c:when>
+                                                <c:otherwise>Sem limite</c:otherwise>
+                                            </c:choose>
+                                        </td>
                                         <td>
                                             <span class="status-pill">${area.ativa ? 'Ativa' : 'Inativa'}</span>
                                         </td>

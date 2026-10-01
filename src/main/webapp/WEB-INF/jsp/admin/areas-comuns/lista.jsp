@@ -41,6 +41,10 @@
                         <span>Horario de fechamento (opcional)</span>
                         <input type="time" name="horarioFechamento" value="${cadastrarAreaComumForm.horarioFechamento}">
                     </label>
+                    <label class="field">
+                        <span>Duracao maxima da reserva, em minutos (opcional)</span>
+                        <input type="number" name="duracaoMaximaMinutos" min="1" step="1" placeholder="Sem limite" value="${cadastrarAreaComumForm.duracaoMaximaMinutos}">
+                    </label>
                     <div class="field">
                         <span>Dias de funcionamento (deixe tudo desmarcado para funcionar todos os dias)</span>
                         <div class="checkbox-row">
@@ -86,6 +90,7 @@
                                     <th>Nome</th>
                                     <th>Descricao</th>
                                     <th>Horario</th>
+                                    <th>Duracao maxima</th>
                                     <th>Dias</th>
                                     <th>Situacao</th>
                                     <th></th>
@@ -100,6 +105,12 @@
                                             <c:choose>
                                                 <c:when test="${area.temHorarioFuncionamento}">${area.horarioAbertura} - ${area.horarioFechamento}</c:when>
                                                 <c:otherwise>Sem restricao</c:otherwise>
+                                            </c:choose>
+                                        </td>
+                                        <td>
+                                            <c:choose>
+                                                <c:when test="${not empty area.duracaoMaximaMinutos}">${area.duracaoMaximaMinutos} min</c:when>
+                                                <c:otherwise>Sem limite</c:otherwise>
                                             </c:choose>
                                         </td>
                                         <td>${area.diasFuncionamentoLabel}</td>
