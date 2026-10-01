@@ -251,6 +251,16 @@
     color: var(--neutral);
 }
 
+.status-pill.success {
+    background: linear-gradient(135deg, rgba(34, 139, 87, 0.12), rgba(34, 139, 87, 0.18));
+    color: #1c6b44;
+}
+
+.status-pill.warning {
+    background: linear-gradient(135deg, rgba(196, 130, 24, 0.14), rgba(196, 130, 24, 0.2));
+    color: #8a5a10;
+}
+
 .detail-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     margin-bottom: 18px;

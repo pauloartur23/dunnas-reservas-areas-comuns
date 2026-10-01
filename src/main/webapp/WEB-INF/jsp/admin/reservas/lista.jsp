@@ -17,6 +17,9 @@
                         <h2>Todas as reservas</h2>
                         <p class="section-subtitle">Aprove, negue ou cancele solicitacoes.</p>
                     </div>
+                    <div class="button-row">
+                        <a href="${ctx}/admin/reservas/agenda" class="btn btn-secondary">Ver agenda do dia</a>
+                    </div>
                 </div>
 
                 <form method="get" action="${ctx}/admin/reservas" class="filter-grid">

@@ -108,6 +108,34 @@ public class MoradorReservaWebController {
         return "morador/reservas/lista";
     }
 
+    @Operation(summary = "Exibe a agenda das proprias reservas de um dia", tags = "20 - Morador Web - Reservas")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Pagina de agenda das reservas renderizada com sucesso."),
+            @ApiResponse(responseCode = "403", description = "Acesso negado para o perfil autenticado.")
+    })
+    @GetMapping({"/reservas/agenda", "/reservas/agenda/"})
+    @Transactional(readOnly = true)
+    public String agendaReservas(
+            Authentication authentication,
+            @RequestParam(required = false) UUID areaComumId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate data,
+            Model model
+    ) {
+        var currentUser = support.authenticatedUser(authentication);
+        LocalDate dataConsultada = data != null ? data : LocalDate.now();
+        var reservas = reservaUseCases.listarMinhasReservas(
+                currentUser, null, areaComumId, dataConsultada, support.pageRequest(0, 100)
+        );
+        var areas = reservaUseCases.listarAreasComuns();
+
+        model.addAttribute("pageTitle", "Agenda de Reservas");
+        model.addAttribute("agenda", support.agendaDoDia(reservas.content()));
+        model.addAttribute("areasComuns", support.mapContent(areas, support::toAreaComumMap));
+        model.addAttribute("filtroAreaComumId", areaComumId);
+        model.addAttribute("filtroData", dataConsultada);
+        return "morador/reservas/agenda";
+    }
+
     @Operation(summary = "Exibe o detalhe de uma reserva do morador", tags = "20 - Morador Web - Reservas")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Pagina de detalhe da reserva renderizada com sucesso."),

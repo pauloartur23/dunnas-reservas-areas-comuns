@@ -17,6 +17,9 @@
                         <h2>Minhas reservas</h2>
                         <p class="section-subtitle">Acompanhe o estado das suas solicitacoes.</p>
                     </div>
+                    <div class="button-row">
+                        <a href="${ctx}/morador/reservas/agenda" class="btn btn-secondary">Ver agenda do dia</a>
+                    </div>
                 </div>
 
                 <form method="get" action="${ctx}/morador/reservas" class="filter-grid">

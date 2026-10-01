@@ -261,6 +261,37 @@ public class WebControllerSupport {
     }
 
     /**
+     * Monta a visao de agenda de um dia (RN-01-09 / Escopo funcional #5): agrupa as
+     * reservas por area comum e, dentro de cada area, ordena por horario de inicio.
+     * So reservas ainda relevantes para a ocupacao do dia entram na agenda -
+     * APROVADA (ocupa o horario) e SOLICITADA (pendente, nao ocupa, mas o morador/
+     * administrador precisa ve-la para nao pensar que o horario esta livre).
+     * NEGADA e CANCELADA ficam de fora da agenda (permanecem visiveis na lista e no
+     * historico da propria reserva).
+     */
+    public List<Map<String, Object>> agendaDoDia(List<Reserva> reservas) {
+        Map<String, List<Reserva>> porArea = reservas.stream()
+                .filter(r -> r.getStatus() == StatusReserva.APROVADA || r.getStatus() == StatusReserva.SOLICITADA)
+                .sorted((a, b) -> a.getHoraInicio().compareTo(b.getHoraInicio()))
+                .collect(Collectors.groupingBy(
+                        r -> r.getAreaComum() == null ? "" : r.getAreaComum().getNome(),
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ));
+
+        List<Map<String, Object>> agenda = new java.util.ArrayList<>();
+        porArea.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(entry -> {
+                    Map<String, Object> grupo = new LinkedHashMap<>();
+                    grupo.put("areaComumNome", entry.getKey());
+                    grupo.put("reservas", mapContent(entry.getValue(), this::toReservaMap));
+                    agenda.add(grupo);
+                });
+        return agenda;
+    }
+
+    /**
      * Mapeia um evento do historico de reserva (registro de auditoria) para exibicao
      * na tela de detalhe. statusAnteriorLabel vem nulo apenas no primeiro evento
      * (a criacao da propria reserva), o que a JSP usa pra mudar o texto exibido.
