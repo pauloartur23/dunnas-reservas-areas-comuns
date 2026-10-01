@@ -79,11 +79,12 @@ class ReservaServiceTest {
         when(areaComumRepository.save(any(AreaComum.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         AreaComum areaComum = reservaService.cadastrarAreaComum(
-                admin, "Piscina", "Area de lazer", LocalTime.of(7, 0), LocalTime.of(20, 0), Set.of(DayOfWeek.MONDAY)
+                admin, "Piscina", "Area de lazer", LocalTime.of(7, 0), LocalTime.of(20, 0), 120, Set.of(DayOfWeek.MONDAY)
         );
 
         assertEquals("Piscina", areaComum.getNome());
         assertTrue(areaComum.getAtiva());
+        assertEquals(120, areaComum.getDuracaoMaximaMinutos());
     }
 
     @Test
@@ -93,7 +94,7 @@ class ReservaServiceTest {
 
         assertThrows(
                 BusinessRuleException.class,
-                () -> reservaService.cadastrarAreaComum(admin, "Piscina", null, null, null, null)
+                () -> reservaService.cadastrarAreaComum(admin, "Piscina", null, null, null, null, null)
         );
 
         verify(areaComumRepository, never()).save(any());
@@ -105,7 +106,19 @@ class ReservaServiceTest {
 
         assertThrows(
                 BusinessRuleException.class,
-                () -> reservaService.cadastrarAreaComum(admin, "Salao", null, LocalTime.of(10, 0), LocalTime.of(9, 0), null)
+                () -> reservaService.cadastrarAreaComum(admin, "Salao", null, LocalTime.of(10, 0), LocalTime.of(9, 0), null, null)
+        );
+
+        verify(areaComumRepository, never()).save(any());
+    }
+
+    @Test
+    void cadastrarAreaComumDeveFalharQuandoDuracaoMaximaNaoForPositiva() {
+        AuthenticatedUser admin = admin();
+
+        assertThrows(
+                BusinessRuleException.class,
+                () -> reservaService.cadastrarAreaComum(admin, "Salao", null, null, null, 0, null)
         );
 
         verify(areaComumRepository, never()).save(any());
@@ -119,7 +132,7 @@ class ReservaServiceTest {
 
         assertThrows(
                 BusinessRuleException.class,
-                () -> reservaService.atualizarAreaComum(admin, areaId, "Piscina Aberta", null, null, null, null)
+                () -> reservaService.atualizarAreaComum(admin, areaId, "Piscina Aberta", null, null, null, null, null)
         );
 
         verify(areaComumRepository, never()).findById(any());
@@ -134,7 +147,7 @@ class ReservaServiceTest {
 
         assertThrows(
                 ResourceNotFoundException.class,
-                () -> reservaService.atualizarAreaComum(admin, areaId, "Piscina", null, null, null, null)
+                () -> reservaService.atualizarAreaComum(admin, areaId, "Piscina", null, null, null, null, null)
         );
     }
 
@@ -211,6 +224,22 @@ class ReservaServiceTest {
         );
     }
 
+    @Test
+    void consultarDisponibilidadeDeveFalharQuandoExcedeDuracaoMaximaDaArea() {
+        AuthenticatedUser morador = morador();
+        UUID areaId = UUID.randomUUID();
+        AreaComum area = new AreaComum();
+        area.setId(areaId);
+        area.setDuracaoMaximaMinutos(30);
+
+        when(areaComumRepository.findById(areaId)).thenReturn(Optional.of(area));
+
+        assertThrows(
+                BusinessRuleException.class,
+                () -> reservaService.consultarDisponibilidade(morador, areaId, AMANHA, LocalTime.of(10, 0), LocalTime.of(11, 0))
+        );
+    }
+
     // ---------- solicitacao de reserva ----------
 
     @Test
@@ -260,6 +289,48 @@ class ReservaServiceTest {
 
         verify(reservaRepository, never()).save(any());
         verify(reservaHistoricoRepository, never()).save(any());
+    }
+
+    @Test
+    void solicitarReservaDeveFalharQuandoExcedeDuracaoMaximaDaArea() {
+        AuthenticatedUser morador = morador();
+        UUID areaId = UUID.randomUUID();
+        AreaComum area = new AreaComum();
+        area.setId(areaId);
+        area.setAtiva(Boolean.TRUE);
+        area.setDuracaoMaximaMinutos(60);
+
+        when(areaComumRepository.findById(areaId)).thenReturn(Optional.of(area));
+
+        assertThrows(
+                BusinessRuleException.class,
+                () -> reservaService.solicitarReserva(morador, areaId, AMANHA, LocalTime.of(10, 0), LocalTime.of(11, 30))
+        );
+
+        verify(reservaRepository, never()).save(any());
+        verify(reservaHistoricoRepository, never()).save(any());
+    }
+
+    @Test
+    void solicitarReservaDeveCriarQuandoDuracaoEIgualAoLimiteMaximoDaArea() {
+        AuthenticatedUser morador = morador();
+        UUID areaId = UUID.randomUUID();
+        AreaComum area = new AreaComum();
+        area.setId(areaId);
+        area.setAtiva(Boolean.TRUE);
+        area.setDuracaoMaximaMinutos(60);
+
+        Morador moradorEntity = new Morador();
+        moradorEntity.setId(morador.id());
+        moradorEntity.setNome("Paulo Pedro");
+
+        when(areaComumRepository.findById(areaId)).thenReturn(Optional.of(area));
+        when(moradorRepository.findByIdAndAtivoTrue(morador.id())).thenReturn(Optional.of(moradorEntity));
+        when(reservaRepository.save(any(Reserva.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Reserva reserva = reservaService.solicitarReserva(morador, areaId, AMANHA, LocalTime.of(10, 0), LocalTime.of(11, 0));
+
+        assertEquals(StatusReserva.SOLICITADA, reserva.getStatus());
     }
 
     // ---------- aprovacao ----------
