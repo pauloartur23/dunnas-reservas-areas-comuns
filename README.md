@@ -7,35 +7,35 @@ Este projeto implementa um sistema de gerenciamento de chamados para condomínio
 ## Índice Remissivo
 
 - [Funcionalidades Seguidas](#funcionalidades-seguidas)
-    - [Administrador](#administrador)
-    - [Colaborador](#colaborador)
-    - [Morador](#morador)
-    - [Chamado](#chamado)
-    - [Área Comum e Reserva](#área-comum-e-reserva)
+  - [Administrador](#administrador)
+  - [Colaborador](#colaborador)
+  - [Morador](#morador)
+  - [Chamado](#chamado)
+  - [Área Comum e Reserva](#área-comum-e-reserva)
 - [Detalhamento do Sistema](#detalhamento-do-sistema)
-    - [Principais funcionalidades](#principais-funcionalidades)
+  - [Principais funcionalidades](#principais-funcionalidades)
 - [Padrões de Projeto Utilizados](#padrões-de-projeto-utilizados)
 - [Estrutura do Projeto e Princípios de Arquitetura](#estrutura-do-projeto-e-princípios-de-arquitetura)
-    - [Árvore de diretórios](#árvore-de-diretórios)
-    - [Estrutura do projeto](#estrutura-do-projeto)
-    - [Clean Architecture no projeto](#clean-architecture-no-projeto)
-    - [Princípios SOLID aplicados ao projeto](#princípios-solid-aplicados-ao-projeto)
-    - [Decisões arquiteturais e relação com o projeto](#decisões-arquiteturais-e-relação-com-o-projeto)
+  - [Árvore de diretórios](#árvore-de-diretórios)
+  - [Estrutura do projeto](#estrutura-do-projeto)
+  - [Clean Architecture no projeto](#clean-architecture-no-projeto)
+  - [Princípios SOLID aplicados ao projeto](#princípios-solid-aplicados-ao-projeto)
+  - [Decisões arquiteturais e relação com o projeto](#decisões-arquiteturais-e-relação-com-o-projeto)
 - [Diagrama Relacional](#diagrama-relacional)
-    - [Documentação dos Modelos](#documentação-dos-modelos)
-    - [Tabelas](#tabelas)
-    - [Relacionamentos principais](#relacionamentos-principais)
-    - [Migrations do Banco](#migrations-do-banco)
+  - [Documentação dos Modelos](#documentação-dos-modelos)
+  - [Tabelas](#tabelas)
+  - [Relacionamentos principais](#relacionamentos-principais)
+  - [Migrations do Banco](#migrations-do-banco)
 - [Endpoints Web](#endpoints-web)
-    - [Endpoints públicos](#endpoints-públicos)
-    - [Endpoints do administrador](#endpoints-do-administrador)
-    - [Endpoints do colaborador](#endpoints-do-colaborador)
-    - [Endpoints do morador](#endpoints-do-morador)
-    - [Endpoints de Áreas Comuns e Reservas](#endpoints-de-áreas-comuns-e-reservas)
+  - [Endpoints públicos](#endpoints-públicos)
+  - [Endpoints do administrador](#endpoints-do-administrador)
+  - [Endpoints do colaborador](#endpoints-do-colaborador)
+  - [Endpoints do morador](#endpoints-do-morador)
+  - [Endpoints de Áreas Comuns e Reservas](#endpoints-de-áreas-comuns-e-reservas)
 - [Executar o Projeto](#executar-o-projeto)
-    - [Variáveis de ambiente](#variáveis-de-ambiente)
-    - [Execução com Docker Compose](#execução-com-docker-compose)
-    - [Inicialização e Credenciais Padrão (Bootstrap)](#inicialização-e-credenciais-padrão-bootstrap)
+  - [Variáveis de ambiente](#variáveis-de-ambiente)
+  - [Execução com Docker Compose](#execução-com-docker-compose)
+  - [Inicialização e Credenciais Padrão (Bootstrap)](#inicialização-e-credenciais-padrão-bootstrap)
 
 # Funcionalidades Seguidas
 
@@ -57,8 +57,8 @@ Este projeto implementa um sistema de gerenciamento de chamados para condomínio
 - Cadastrar os status possíveis dos chamados.
 
 - Definir um status como padrão.
-    - Iniciar o Chamado com esse Status.
-    - Sistema ja inicia com um Status padrão mas pode ser modificado.
+  - Iniciar o Chamado com esse Status.
+  - Sistema ja inicia com um Status padrão mas pode ser modificado.
 
 - Os status reservados `Solicitado`, `Atrasado` e `Finalizado` nao podem ser editados na tela administrativa.
 
@@ -138,7 +138,7 @@ Este projeto implementa um sistema de gerenciamento de chamados para condomínio
 - Data de início definida no momento em que o chamado for iniciado.
 - Data de finalização definida no momento em que o chamado for concluído.
 - Se algum chamado que esteja com status diferente de finalisado estiver : horario_atual > horario_inicio + SLA. Será marcado como atrasado.
-    - Essa funcionalidade foi implementada via scheduler para evitar custo a cada acesso.
+  - Essa funcionalidade foi implementada via scheduler para evitar custo a cada acesso.
 
 ### Regras gerais do sistema
 - O sistema possui blocos, andares e unidades.
@@ -206,20 +206,20 @@ As 15 regras de negócio detalhadas (RN-01-01 a RN-01-15), os critérios de acei
 - Atualização de status e finalização por administrador ou colaborador.
 - Morador consegue Reabrir chamados que já foram finalisados.
 - Aplicação automática do status `Atrasado` por job agendado quando o SLA expira.
-    - Via Scheduler para não sobrecarregar as chamadas ao front fasendo cálculos constantes desnecessários.
+  - Via Scheduler para não sobrecarregar as chamadas ao front fasendo cálculos constantes desnecessários.
 - Listagem paginada e filtrada conforme perfil de acesso.
-    - Listagem usa Paginação para melhor desempenho.
-    - Filtros para melhorar a pesquisa e experiencia do usuário.
+  - Listagem usa Paginação para melhor desempenho.
+  - Filtros para melhorar a pesquisa e experiencia do usuário.
 - O projeto pode seguir o timezone configurado por ambiente, alinhando aplicação e banco para cálculos de SLA, atraso e finalização.
 
 ### Histórico e evidências
 
 - Registro de comentários vinculados ao chamado com autoria.
 - Inclusão e download de anexos.
-    - Inclusão no chamado:Morador
-    - Inclusão em comentário:Morador , Colaborador , Administrador
-    - Download no chamado:Morador , Colaborador , Administrador
-    - Download em comentário:Morador , Colaborador , Administrador
+  - Inclusão no chamado:Morador
+  - Inclusão em comentário:Morador , Colaborador , Administrador
+  - Download no chamado:Morador , Colaborador , Administrador
+  - Download em comentário:Morador , Colaborador , Administrador
 - Persistência de datas de abertura e finalização para rastreabilidade operacional.
 
 ### Validação de entrada
@@ -650,11 +650,12 @@ Campos principais: `id`, `chamado_id`, `nome_arquivo`, `content_type`, `tamanho_
 
 ### `areas_comuns`
 
-Campos principais: `id`, `nome`, `descricao`, `ativa`, `horario_abertura`, `horario_fechamento`.
+Campos principais: `id`, `nome`, `descricao`, `ativa`, `horario_abertura`, `horario_fechamento`, `duracao_maxima_minutos`.
 
 - Mantida exclusivamente pelo administrador; `ativa = false` bloqueia novas solicitações sem apagar reservas existentes.
 - `nome` é único (ignorando maiúscula/minúscula), garantido tanto na aplicação quanto por constraint no banco.
 - `horario_abertura`/`horario_fechamento` e os dias de funcionamento (tabela `area_comum_dia_funcionamento`, N:N com `DayOfWeek`) são opcionais: uma área sem horário/dias cadastrados funciona em qualquer horário e dia.
+- `duracao_maxima_minutos` é opcional: quando cadastrado, limita a duração de uma reserva nessa área (em minutos); sem valor, a área não tem limite de duração.
 
 ### `reservas`
 
@@ -747,6 +748,7 @@ O projeto usa Flyway para versionar a estrutura do banco e a evolução das fun�
 - `V23`: dias de funcionamento opcionais das áreas comuns (tabela `area_comum_dia_funcionamento`)
 - `V24`: unicidade de nome de área comum (ignorando maiúscula/minúscula)
 - `V25`: tabela `reserva_historico` (registro de auditoria das reservas)
+- `V26`: duração máxima opcional (em minutos) de reserva por área comum
 
 ## Endpoints Web
 
@@ -759,17 +761,17 @@ Esses endpoints retornam páginas JSP e usam autenticação com sessão via Spri
 - A tela de login está em `GET /login`.
 - O envio do formulário de login acontece em `POST /login`, usando os campos `username` para o email e `password` para a senha.
 - Após autenticar, o sistema redireciona automaticamente para:
-    - `/admin` para administradores.
-    - `/colaborador` para colaboradores.
-    - `/morador` para moradores.
+  - `/admin` para administradores.
+  - `/colaborador` para colaboradores.
+  - `/morador` para moradores.
 
 ### Paginação web
 
 As listagens da interface usam os parâmetros de query string `page` e `size`.
 
 - `page` é baseado em zero.
-    - `page=0` representa a primeira página.
-    - `page=1` representa a segunda página.
+  - `page=0` representa a primeira página.
+  - `page=1` representa a segunda página.
 - `size` define quantos registros serão exibidos por página.
 - O tamanho padrão é `10` itens por página na maioria das listagens.
 - O tamanho máximo aceito é `100`.

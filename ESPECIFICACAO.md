@@ -117,6 +117,23 @@ que o próprio enunciado exclui do escopo) por ser suficiente para o
 critério de aceite e por poder ser entregue com baixo risco, reaproveitando
 código já coberto pelos 76 testes existentes.
 
+### 1.8 Duração máxima de reserva por área comum (decisão própria)
+O enunciado não pede limite de duração por reserva. Decidi adicionar essa
+regra por conta própria, no mesmo espírito do horário de funcionamento
+(1.2): sem ela, uma única reserva poderia ocupar uma área comum por um
+intervalo de tempo desproporcional (por exemplo, o dia inteiro), o que não
+parece uma restrição realista para uma área compartilhada.
+
+**Decisão**: adicionei um campo opcional `duracao_maxima_minutos` em
+`areas_comuns` (migration `V26`). Quando cadastrado, uma reserva cujo
+intervalo (`hora_fim - hora_inicio`) exceda esse limite é recusada, tanto
+na consulta de disponibilidade quanto na solicitação. Sem valor cadastrado
+(`null`), a área mantém o comportamento anterior, sem limite de duração —
+não quebra nenhuma área já existente. Deliberadamente **não** implementei
+um limite de "quantidade de reservas por morador por semana": o enunciado
+lista "reservas recorrentes ou regras complexas de repetição" em "Fora do
+escopo", e uma regra de cota semanal se encaixa nessa categoria.
+
 ## 2. Interpretações de pontos não detalhados no enunciado
 
 - Campos de `AreaComum` além de `nome`: o desafio não detalha o cadastro
@@ -220,8 +237,8 @@ código já coberto pelos 76 testes existentes.
   só existe uma janela diária única por área.
 - Edição de uma reserva já criada (data ou horário): o morador cancela e
   solicita de novo.
-- Limite de reservas por morador ou por unidade, antecedência mínima ou máxima
-  e duração mínima ou máxima da reserva.
+- Limite de reservas por morador ou por unidade e antecedência mínima ou
+  máxima para solicitar (duração máxima já é tratada na seção 1.8).
 - Expiração automática de solicitação pendente cujo horário já passou: ela
   continua SOLICITADA no histórico, pois o enunciado não define um estado
   para isso.
@@ -256,13 +273,19 @@ ideias, e a gente foi conversando até sair do problema.
   dentro do banco em vez de só em Java; perguntei, entendi o padrão
   (Flyway + funções PL/pgSQL chamadas pelos repositories), e segui esse
   mesmo padrão nas consultas novas de Reservas.
+- Depois de entregar a funcionalidade, perguntei se fazia sentido
+  adicionar uma duração máxima configurável por área comum, e também se o
+  enunciado pedia algum limite de "reservas por semana"; discutimos o
+  enunciado e concluí que duração máxima era uma boa decisão própria, mas
+  um limite semanal se encaixava na exclusão de "reservas recorrentes ou
+  regras complexas de repetição" do próprio enunciado (seção 1.8).
 
 **O que não deleguei:** as regras de negócio e o código, a stack, o
 escopo final da entrega, as interpretações dos pontos não detalhados do
 enunciado, quais imprecisões do código-base valia corrigir ou só
 registrar, e o aceite de cada parte antes de commitar.
 
-**Como validei:** rodando `mvn test` a cada mudança (76 testes, 0
+**Como validei:** rodando `mvn test` a cada mudança (80 testes, 0
 falhas), conferindo a cobertura no IntelliJ, testando os fluxos
 manualmente, e revisando as regras de negócio do enunciado uma a uma
 contra o código.
@@ -270,16 +293,18 @@ contra o código.
 ## 6. Testes automatizados
 
 ### 6.1 Testes escritos para a nova funcionalidade
-- **`ReservaServiceTest`** (19 testes unitários, `JUnit 5` + `Mockito`,
+- **`ReservaServiceTest`** (23 testes unitários, `JUnit 5` + `Mockito`,
   seguindo o mesmo estilo já usado em `ChamadoServiceTest`): cobre
   unicidade de nome de área (cadastro e atualização), validação de
-  horário/dia de funcionamento, solicitação de reserva (sucesso e área
-  inativa), aprovação (sucesso, conflito de horário, reserva já
-  iniciada), negação (sucesso e motivo vazio) e cancelamento por morador
-  e por administrador (sucesso e reserva já cancelada). Todos os
-  cenários também verificam que o registro de auditoria
-  (`ReservaHistorico`) é gravado corretamente a cada transição de
-  estado.
+  horário/dia de funcionamento, validação da duração máxima configurada
+  por área (cadastro com valor inválido, consulta e solicitação que
+  excedem o limite, e solicitação com duração exatamente igual ao
+  limite), solicitação de reserva (sucesso e área inativa), aprovação
+  (sucesso, conflito de horário, reserva já iniciada), negação (sucesso e
+  motivo vazio) e cancelamento por morador e por administrador (sucesso e
+  reserva já cancelada). Todos os cenários também verificam que o
+  registro de auditoria (`ReservaHistorico`) é gravado corretamente a
+  cada transição de estado.
 - **`ReservaConcorrenciaIntegrationTest`** (1 teste de integração,
   `@DataJpaTest` com banco H2 real): prova de forma reproduzível que a
   proteção contra aprovação dupla (RN-01-07 / CA-01-08) funciona de
@@ -297,12 +322,12 @@ contra o código.
 Medida com a ferramenta de cobertura embutida do IntelliJ ("Run with
 Coverage") sobre o `ReservaServiceTest`:
 
-| Métrica    | Resultado     |
-|------------|---------------|
-| Classes    | 100%          |
-| Métodos    | 75% (22/29)   |
-| Linhas     | 79% (155/196) |
-| Branches   | 65% (47/72)   |
+| Métrica    | Resultado      |
+|------------|----------------|
+| Classes    | 100% (1/1)     |
+| Métodos    | 77% (24/31)    |
+| Linhas     | 80% (167/208)  |
+| Branches   | 68% (55/80)    |
 
 Todas as métricas superam com folga o mínimo de 40% exigido pelo
 desafio para a lógica de negócio da nova funcionalidade.
@@ -362,13 +387,14 @@ regressões futuras em qualquer parte do sistema.
    `request.setUserPrincipal(...)`), sem depender de nenhum filtro.
 
 Com essas 4 correções, a suíte completa do projeto passou de testes que
-nunca haviam rodado para **76 testes, 0 falhas** (`mvn test` —
+nunca haviam rodado para **80 testes, 0 falhas** (`mvn test` —
 `BUILD SUCCESS`).
 
 ## 7. Perguntas que eu faria antes de começar
 
 1. As áreas têm horário de funcionamento, dias fechados, duração mínima ou
-   máxima de reserva? (Assumi janela diária opcional.)
+   máxima de reserva? (Assumi janela diária opcional, e depois adicionei
+   duração máxima opcional por conta própria — seção 1.8.)
 2. Existe antecedência mínima ou máxima para solicitar uma reserva?
 3. Uma reserva pode atravessar a meia-noite?
 4. Uma solicitação pendente cujo horário passou deve expirar sozinha ou
