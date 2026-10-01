@@ -2,24 +2,25 @@ services:
   db:
     image: postgres:16-alpine
     container_name: postgres_condominio
-    command: ["postgres", "-c", "timezone=${APP_TIMEZONE}"]
+    command: ["postgres", "-c", "timezone=${APP_TIMEZONE:-America/Sao_Paulo}"]
 
-    env_file:
-      - .env
-
+    # Nao depende de um arquivo .env: cada variavel ja tem um valor padrao de
+    # desenvolvimento (apos o ":-"), entao "docker compose up" funciona sozinho,
+    # do zero, em qualquer maquina. Quem quiser usar valores proprios pode criar
+    # um .env na raiz do projeto (nunca versionado) que o Compose le automaticamente
+    # e sobrescreve esses padroes.
     environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
-      TZ: ${APP_TIMEZONE}
-      PGTZ: ${APP_TIMEZONE}
-      API_SECURITY_TOKEN_SECRET: ${TOKEN}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-gerenciador_chamados}
+      TZ: ${APP_TIMEZONE:-America/Sao_Paulo}
+      PGTZ: ${APP_TIMEZONE:-America/Sao_Paulo}
 
     ports:
       - "5432:5432"
 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -31,27 +32,25 @@ services:
     build: .
     container_name: app_condominio
 
-    env_file:
-      - .env
-
     ports:
       - "8080:8080"
 
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${DB_NAME}
-      SPRING_DATASOURCE_USERNAME: ${DB_USER}
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${DB_NAME:-gerenciador_chamados}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-postgres}
       SPRING_JPA_HIBERNATE_DDL_AUTO: validate
-      APP_TIMEZONE: ${APP_TIMEZONE}
-      TZ: ${APP_TIMEZONE}
-      JAVA_TOOL_OPTIONS: -Duser.timezone=${APP_TIMEZONE}
-      APP_BOOTSTRAP_ADMIN_ENABLED: true
-      APP_BOOTSTRAP_ADMIN_NOME: ${APP_BOOTSTRAP_ADMIN_NOME}
-      APP_BOOTSTRAP_ADMIN_EMAIL: ${APP_BOOTSTRAP_ADMIN_EMAIL}
-      APP_BOOTSTRAP_ADMIN_SENHA: ${APP_BOOTSTRAP_ADMIN_SENHA}
-      APP_CHAMADO_ATRASO_SCHEDULER_ENABLED: true
-      APP_CHAMADO_ATRASO_SCHEDULER_INITIAL_DELAY_MS: ${APP_CHAMADO_ATRASO_SCHEDULER_INITIAL_DELAY_MS}
-      APP_CHAMADO_ATRASO_SCHEDULER_FIXED_DELAY_MS: ${APP_CHAMADO_ATRASO_SCHEDULER_FIXED_DELAY_MS}
+      APP_TIMEZONE: ${APP_TIMEZONE:-America/Sao_Paulo}
+      TZ: ${APP_TIMEZONE:-America/Sao_Paulo}
+      JAVA_TOOL_OPTIONS: -Duser.timezone=${APP_TIMEZONE:-America/Sao_Paulo}
+      TOKEN: ${TOKEN:-dev-secret-troque-em-producao}
+      APP_BOOTSTRAP_ADMIN_ENABLED: ${APP_BOOTSTRAP_ADMIN_ENABLED:-true}
+      APP_BOOTSTRAP_ADMIN_NOME: ${APP_BOOTSTRAP_ADMIN_NOME:-Administrador}
+      APP_BOOTSTRAP_ADMIN_EMAIL: ${APP_BOOTSTRAP_ADMIN_EMAIL:-admin@condominio.local}
+      APP_BOOTSTRAP_ADMIN_SENHA: ${APP_BOOTSTRAP_ADMIN_SENHA:-admin123}
+      APP_CHAMADO_ATRASO_SCHEDULER_ENABLED: ${APP_CHAMADO_ATRASO_SCHEDULER_ENABLED:-true}
+      APP_CHAMADO_ATRASO_SCHEDULER_INITIAL_DELAY_MS: ${APP_CHAMADO_ATRASO_SCHEDULER_INITIAL_DELAY_MS:-30000}
+      APP_CHAMADO_ATRASO_SCHEDULER_FIXED_DELAY_MS: ${APP_CHAMADO_ATRASO_SCHEDULER_FIXED_DELAY_MS:-60000}
 
     depends_on:
       db:
