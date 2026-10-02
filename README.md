@@ -4,6 +4,8 @@ Este projeto implementa um sistema de gerenciamento de chamados para condomínio
 
 > Este README documenta o projeto base recebido (gestão de chamados) e a funcionalidade de **Reservas de Áreas Comuns**, entregue como evolução dele (Desafio nº 003/2026). As decisões técnicas, interpretações de pontos não detalhados e imprecisões encontradas no código recebido estão em [`ESPECIFICACAO.md`](./ESPECIFICACAO.md).
 
+> **Ambiente publicado**: https://dunnas-reservas-areas-comuns.onrender.com (login padrão: `admin@condominio.local` / `admin123`). Hospedado no plano gratuito do Render — a primeira requisição após um período sem uso pode demorar até ~1 minuto para responder.
+
 ## Índice Remissivo
 
 - [Funcionalidades Seguidas](#funcionalidades-seguidas)
