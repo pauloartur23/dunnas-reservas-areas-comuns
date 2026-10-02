@@ -279,13 +279,30 @@ ideias, e a gente foi conversando até sair do problema.
   enunciado e concluí que duração máxima era uma boa decisão própria, mas
   um limite semanal se encaixava na exclusão de "reservas recorrentes ou
   regras complexas de repetição" do próprio enunciado (seção 1.8).
+- Depois de ter a funcionalidade pronta, pedi uma revisão de ponta a ponta
+  no nível que eu imaginava ser cobrado numa entrega pra uma empresa
+  grande: se havia alguma credencial exposta (no código e em todo o
+  histórico do Git) e se faltava cobrir alguma regra de negócio do PDF do
+  desafio. Não apareceu nenhuma credencial exposta, mas a revisão achou
+  uma lacuna real: o enunciado pede explicitamente pra "exercitar
+  autorização por MORADOR, ADMINISTRADOR e COLABORADOR, incluindo acesso
+  indevido e tentativa de consultar dados de outro morador", e eu só
+  tinha essa regra coberta nos testes de serviço, nunca na camada HTTP
+  dos controllers. Escrevi o `ReservaWebControllerIntegrationTest` pra
+  cobrir isso; na primeira rodada, 8 dos 14 testes falharam, e fomos
+  investigando juntos a causa a partir do log real do Maven, até entender
+  que o `@WebMvcTest` não carrega o `@EnableMethodSecurity` da
+  configuração principal (só os controllers listados na anotação), então
+  o `@PreAuthorize` não era aplicado nesse tipo de teste fatiado —
+  precisei declarar essa anotação direto na classe de teste e ajustar
+  como as negações de acesso são verificadas.
 
 **O que não deleguei:** as regras de negócio e o código, a stack, o
 escopo final da entrega, as interpretações dos pontos não detalhados do
 enunciado, quais imprecisões do código-base valia corrigir ou só
 registrar, e o aceite de cada parte antes de commitar.
 
-**Como validei:** rodando `mvn test` a cada mudança (80 testes, 0
+**Como validei:** rodando `mvn test` a cada mudança (94 testes, 0
 falhas), conferindo a cobertura no IntelliJ, testando os fluxos
 manualmente, e revisando as regras de negócio do enunciado uma a uma
 contra o código.
@@ -317,6 +334,22 @@ contra o código.
   durante a execução confirma duas instruções `select ... for update`
   (o lock pessimista sendo de fato acionado) e apenas um `insert into
   reserva_historico` / `update reservas` bem-sucedido.
+- **`ReservaWebControllerIntegrationTest`** (14 testes de integração,
+  `@WebMvcTest` sobre os 4 controllers de Reserva): cobre o caminho feliz
+  de cada perfil (morador lista áreas comuns e solicita reserva;
+  administrador lista e aprova reserva) e, principalmente, autorização —
+  exatamente o que o enunciado pede em "exercitar autorização por
+  MORADOR, ADMINISTRADOR e COLABORADOR, incluindo acesso indevido e
+  tentativa de consultar dados de outro morador": COLABORADOR tentando
+  acessar ou alterar qualquer rota de morador ou de admin (acesso
+  negado, sem nenhuma chamada ao serviço), MORADOR tentando acessar
+  rotas exclusivas do admin (cadastrar área comum, aprovar/negar
+  reserva) e ADMINISTRADOR tentando acessar a listagem do morador —
+  todos negados por `@PreAuthorize`. Cobre também isolamento de dados
+  entre moradores: um morador tentando visualizar ou cancelar uma
+  reserva de outro morador recebe "não encontrada", porque o serviço já
+  filtra por `moradorId` e o controller nunca expõe se a reserva de
+  outro morador existe de verdade.
 
 ### 6.2 Cobertura de código da `ReservaService`
 Medida com a ferramenta de cobertura embutida do IntelliJ ("Run with
